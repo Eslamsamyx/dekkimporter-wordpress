@@ -87,8 +87,24 @@ class DekkImporter_Logs_Viewer extends WP_List_Table {
             return array();
         }
 
-        // Get date filter from request
+        // Get date filter from request with strict validation
         $date_filter = isset($_GET['date_filter']) ? sanitize_text_field($_GET['date_filter']) : '';
+
+        // Validate date format to prevent path traversal
+        if (!empty($date_filter)) {
+            // Only allow YYYY-MM-DD format
+            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date_filter)) {
+                error_log('DekkImporter: Invalid date format in log filter: ' . $date_filter);
+                return array();
+            }
+
+            // Validate it's a real date
+            $parts = explode('-', $date_filter);
+            if (!checkdate((int)$parts[1], (int)$parts[2], (int)$parts[0])) {
+                error_log('DekkImporter: Invalid date in log filter: ' . $date_filter);
+                return array();
+            }
+        }
 
         // Get all log files
         $log_files = glob($log_dir . '/dekkimporter-*.log');
@@ -104,11 +120,24 @@ class DekkImporter_Logs_Viewer extends WP_List_Table {
         // If date filter is set, only use that file
         if (!empty($date_filter)) {
             $filtered_file = $log_dir . '/dekkimporter-' . $date_filter . '.log';
-            if (file_exists($filtered_file)) {
-                $log_files = array($filtered_file);
-            } else {
+
+            // Additional security: verify the resolved path is within log directory
+            $real_log_dir = realpath($log_dir);
+            $real_filtered_file = realpath($filtered_file);
+
+            // If realpath returns false, file doesn't exist or path is invalid
+            if ($real_filtered_file === false) {
+                error_log('DekkImporter: Log file not found: ' . $filtered_file);
                 return array();
             }
+
+            // Verify the file is actually in our log directory
+            if (strpos($real_filtered_file, $real_log_dir) !== 0) {
+                error_log('DekkImporter: Path traversal attempt detected: ' . $date_filter);
+                return array();
+            }
+
+            $log_files = array($filtered_file);
         }
 
         $entries = array();

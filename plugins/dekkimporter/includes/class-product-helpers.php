@@ -458,10 +458,24 @@ class DekkImporter_Product_Helpers {
             return null;
         }
 
-        // Download file
+        // Domain whitelist for security (prevent SSRF attacks)
+        $allowed_domains = array(
+            'bud.klettur.is',
+            'eprel.ec.europa.eu',
+            'dekk1.is',
+        );
+
+        $parsed_url = parse_url($url);
+        if (!isset($parsed_url['host']) || !in_array($parsed_url['host'], $allowed_domains, true)) {
+            error_log('DekkImporter: Domain not whitelisted: ' . $parsed_url['host']);
+            return null;
+        }
+
+        // Download file with size limit
         $response = wp_remote_get($url, [
             'timeout' => 30,
             'headers' => ['User-Agent' => 'Mozilla/5.0'],
+            'stream' => false,
         ]);
 
         if (is_wp_error($response)) {
@@ -475,6 +489,21 @@ class DekkImporter_Product_Helpers {
         }
 
         $mime_type = wp_remote_retrieve_header($response, 'content-type');
+        $file_body = wp_remote_retrieve_body($response);
+
+        // Validate file size (10MB max to prevent DoS)
+        $file_size = strlen($file_body);
+        $max_size = 10 * 1024 * 1024; // 10MB
+
+        if ($file_size > $max_size) {
+            error_log('DekkImporter: File too large (' . $file_size . ' bytes, max ' . $max_size . ')');
+            return null;
+        }
+
+        if ($file_size === 0) {
+            error_log('DekkImporter: Downloaded file is empty');
+            return null;
+        }
 
         $tmp = wp_tempnam($url);
         if (!$tmp) {
@@ -482,7 +511,7 @@ class DekkImporter_Product_Helpers {
             return null;
         }
 
-        file_put_contents($tmp, wp_remote_retrieve_body($response));
+        file_put_contents($tmp, $file_body);
 
         if (empty($filename)) {
             $filename = basename(parse_url($url, PHP_URL_PATH));
@@ -504,6 +533,12 @@ class DekkImporter_Product_Helpers {
 
             try {
                 $imagick = new \Imagick();
+
+                // Set resource limits to prevent DoS attacks
+                $imagick->setResourceLimit(\Imagick::RESOURCETYPE_MEMORY, 256 * 1024 * 1024); // 256MB
+                $imagick->setResourceLimit(\Imagick::RESOURCETYPE_MAP, 512 * 1024 * 1024);    // 512MB
+                $imagick->setResourceLimit(\Imagick::RESOURCETYPE_DISK, 1024 * 1024 * 1024);  // 1GB
+
                 $imagick->setResolution(300, 300);
                 $imagick->readImage($tmp . '[0]');
                 $imagick->setImageFormat('png');
@@ -525,10 +560,23 @@ class DekkImporter_Product_Helpers {
             }
         }
 
-        // Validate MIME type
+        // Validate MIME type (check both header and file content)
         $allowed_mime_types = ['image/jpeg', 'image/png', 'image/gif'];
+
+        // First check header
         if (!in_array($mime_type, $allowed_mime_types, true)) {
-            error_log("DekkImporter: Disallowed MIME type ($mime_type) for URL $url");
+            error_log("DekkImporter: Disallowed MIME type from header ($mime_type) for URL $url");
+            @unlink($tmp);
+            return null;
+        }
+
+        // Then verify actual file content
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $actual_mime = finfo_file($finfo, $tmp);
+        finfo_close($finfo);
+
+        if (!in_array($actual_mime, $allowed_mime_types, true)) {
+            error_log("DekkImporter: MIME type mismatch - header: $mime_type, actual: $actual_mime");
             @unlink($tmp);
             return null;
         }

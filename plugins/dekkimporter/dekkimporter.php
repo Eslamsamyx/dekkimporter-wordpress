@@ -3,7 +3,7 @@
  * Plugin Name:       DekkImporter
  * Plugin URI:        mailto:zekonja993@gmail.com
  * Description:       Scraping and updating products.
- * Version:           2.2.0
+ * Version:           2.2.1
  * Requires at least: 5.2
  * Requires PHP:      7.2
  * Author:            Miljan Zekovic
@@ -233,6 +233,9 @@ class DekkImporter {
 
         // Add CC if notification email is set
         if (!empty($notification_email)) {
+            // Sanitize email and remove newlines to prevent header injection
+            $notification_email = sanitize_email($notification_email);
+            $notification_email = str_replace(["\r", "\n"], '', $notification_email);
             $headers[] = 'Cc: ' . $notification_email;
         }
 
@@ -241,13 +244,18 @@ class DekkImporter {
         $admin_email = get_option('admin_email');
 
         if (!empty($admin_email)) {
+            // Sanitize to prevent header injection
+            $store_name = str_replace(["\r", "\n"], '', sanitize_text_field($store_name));
+            $admin_email = str_replace(["\r", "\n"], '', sanitize_email($admin_email));
             $headers[] = 'From: ' . $store_name . ' <' . $admin_email . '>';
         }
 
-        // Order info
-        $order_number = $order->get_order_number();
-        $order_date = $order->get_date_created()->date('Y-m-d H:i:s');
-        $customer_name = $order->get_billing_first_name() . ' ' . $order->get_billing_last_name();
+        // Order info - sanitize all data before use
+        $order_number = sanitize_text_field($order->get_order_number());
+        $order_date = sanitize_text_field($order->get_date_created()->date('Y-m-d H:i:s'));
+        $customer_name = sanitize_text_field(
+            trim($order->get_billing_first_name() . ' ' . $order->get_billing_last_name())
+        );
 
         // Send notifications to each supplier
         $this->send_supplier_notification('BK', $supplier_items['BK'], $bk_email, $headers, $store_name, $order_number, $order_date, $customer_name);
@@ -271,26 +279,39 @@ class DekkImporter {
             return;
         }
 
+        // Sanitize all inputs (defense in depth)
+        $supplier_code = sanitize_text_field($supplier_code);
+        $email = sanitize_email($email);
+        $store_name = sanitize_text_field($store_name);
+        $order_number = sanitize_text_field($order_number);
+        $order_date = sanitize_text_field($order_date);
+        $customer_name = sanitize_text_field($customer_name);
+
         $supplier_name = $supplier_code === 'BK' ? 'Klettur' : 'Mitra';
         $to = $email;
-        $subject = '[' . $store_name . '] New Order ' . $order_number . ' - ' . $supplier_name . ' Items';
+        $subject = sprintf(
+            '[%s] New Order %s - %s Items',
+            $store_name,
+            $order_number,
+            $supplier_name
+        );
 
-        // Create email template
-        $message = '
-        <html>
+        // Create email template with sprintf for safety
+        $message_header = sprintf(
+            '<html>
         <head>
             <style>
                 body { font-family: sans-serif; color: #333; }
-                table { border-collapse: collapse; width: 100%; }
+                table { border-collapse: collapse; width: 100%%; }
                 th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
                 th { background-color: #f2f2f2; }
             </style>
         </head>
         <body>
-            <h2>New Order from ' . esc_html($store_name) . '</h2>
-            <p>Order #: ' . esc_html($order_number) . '</p>
-            <p>Date: ' . esc_html($order_date) . '</p>
-            <p>Customer: ' . esc_html($customer_name) . '</p>
+            <h2>New Order from %s</h2>
+            <p>Order #: %s</p>
+            <p>Date: %s</p>
+            <p>Customer: %s</p>
 
             <h3>Requested Items:</h3>
             <table>
@@ -298,22 +319,46 @@ class DekkImporter {
                     <th>Quantity</th>
                     <th>Product</th>
                     <th>SKU</th>
-                </tr>';
+                </tr>',
+            esc_html($store_name),
+            esc_html($order_number),
+            esc_html($order_date),
+            esc_html($customer_name)
+        );
 
+        $message_rows = '';
         foreach ($items as $item) {
             $product = $item->get_product();
-            $message .= '<tr>
-                <td>' . esc_html($item->get_quantity()) . '</td>
-                <td>' . esc_html($item->get_name()) . '</td>
-                <td>' . esc_html($product->get_sku()) . '</td>
-            </tr>';
+            if (!$product) {
+                continue;
+            }
+
+            // Sanitize product data before output
+            $quantity = absint($item->get_quantity());
+            $name = sanitize_text_field($item->get_name());
+            $sku = sanitize_text_field($product->get_sku());
+
+            $message_rows .= sprintf(
+                '<tr>
+                    <td>%s</td>
+                    <td>%s</td>
+                    <td>%s</td>
+                </tr>',
+                esc_html($quantity),
+                esc_html($name),
+                esc_html($sku)
+            );
         }
 
-        $message .= '
-            </table>
-            <p>Thank you,<br>' . esc_html($store_name) . '</p>
+        $message_footer = sprintf(
+            '</table>
+            <p>Thank you,<br>%s</p>
         </body>
-        </html>';
+        </html>',
+            esc_html($store_name)
+        );
+
+        $message = $message_header . $message_rows . $message_footer;
 
         if (wp_mail($to, $subject, $message, $headers)) {
             $this->logger->log('Notification email sent to ' . $supplier_name . ' supplier: ' . $email);

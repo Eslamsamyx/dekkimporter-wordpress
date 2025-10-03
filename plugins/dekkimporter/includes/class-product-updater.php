@@ -67,9 +67,18 @@ class DekkImporter_Product_Updater {
         $attributes = DekkImporter_Product_Helpers::build_attributes($item);
         $expected_title = DekkImporter_Product_Helpers::build_name($attributes);
 
+        // Sanitize for database security
+        $expected_title = sanitize_text_field($expected_title);
+
         // Update title if changed (direct $wpdb for performance)
         if ($post->post_title !== $expected_title) {
-            $wpdb->update($wpdb->posts, ['post_title' => $expected_title], ['ID' => $product_id]);
+            $wpdb->update(
+                $wpdb->posts,
+                ['post_title' => $expected_title],
+                ['ID' => $product_id],
+                ['%s'],  // Data format
+                ['%d']   // Where format
+            );
             $this->plugin->logger->log("Updated title for product ID $product_id from '{$post->post_title}' to '$expected_title'.");
             $needs_save = true;
         } else {
@@ -93,9 +102,18 @@ class DekkImporter_Product_Updater {
         $eu_label_url = isset($item['EuSheeturl']) ? $item['EuSheeturl'] : '';
         $expected_description = DekkImporter_Product_Helpers::product_desc($tire_type, $eu_label_url);
 
+        // Sanitize for database security (allow safe HTML)
+        $expected_description = wp_kses_post($expected_description);
+
         // Update description if changed (direct $wpdb)
         if ($post->post_content !== $expected_description) {
-            $wpdb->update($wpdb->posts, ['post_content' => $expected_description], ['ID' => $product_id]);
+            $wpdb->update(
+                $wpdb->posts,
+                ['post_content' => $expected_description],
+                ['ID' => $product_id],
+                ['%s'],  // Data format
+                ['%d']   // Where format
+            );
             $this->plugin->logger->log("Updated description for product ID $product_id.");
         }
 
@@ -214,7 +232,9 @@ class DekkImporter_Product_Updater {
                     'post_modified' => current_time('mysql'),
                     'post_modified_gmt' => current_time('mysql', 1)
                 ],
-                ['ID' => $product_id]
+                ['ID' => $product_id],
+                ['%s', '%s'],  // Data format
+                ['%d']         // Where format
             );
             $this->plugin->logger->log("Saved all updates for product ID $product_id.");
         }

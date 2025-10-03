@@ -54,9 +54,15 @@ class DekkImporter_Admin {
      * Register settings
      */
     public function register_settings() {
-        register_setting('dekkimporter_options', 'dekkimporter_options');
-        register_setting('dekkimporter_options', 'dekkimporter_sync_interval');
-        register_setting('dekkimporter_options', 'dekkimporter_log_retention_days');
+        register_setting('dekkimporter_options', 'dekkimporter_options', array(
+            'sanitize_callback' => array($this, 'sanitize_options'),
+        ));
+        register_setting('dekkimporter_options', 'dekkimporter_sync_interval', array(
+            'sanitize_callback' => array($this, 'sanitize_sync_interval'),
+        ));
+        register_setting('dekkimporter_options', 'dekkimporter_log_retention_days', array(
+            'sanitize_callback' => array($this, 'sanitize_log_retention'),
+        ));
 
         // API Settings Section
         add_settings_section(
@@ -160,6 +166,105 @@ class DekkImporter_Admin {
             'dekkimporter',
             'dekkimporter_sync_section'
         );
+    }
+
+    /**
+     * Sanitize options array
+     *
+     * @param array $input Input options
+     * @return array Sanitized options
+     */
+    public function sanitize_options($input) {
+        if (!is_array($input)) {
+            return array();
+        }
+
+        $sanitized = array();
+
+        // Sanitize API URLs
+        if (isset($input['dekkimporter_bk_api_url'])) {
+            $url = esc_url_raw($input['dekkimporter_bk_api_url']);
+            if (filter_var($url, FILTER_VALIDATE_URL)) {
+                $sanitized['dekkimporter_bk_api_url'] = $url;
+            } else {
+                add_settings_error('dekkimporter_options', 'invalid_bk_url', 'BK API URL is invalid.');
+            }
+        }
+
+        if (isset($input['dekkimporter_bm_api_url'])) {
+            $url = esc_url_raw($input['dekkimporter_bm_api_url']);
+            if (filter_var($url, FILTER_VALIDATE_URL)) {
+                $sanitized['dekkimporter_bm_api_url'] = $url;
+            } else {
+                add_settings_error('dekkimporter_options', 'invalid_bm_url', 'BM API URL is invalid.');
+            }
+        }
+
+        // Sanitize markup (0-10000 range)
+        if (isset($input['dekkimporter_field_markup'])) {
+            $markup = absint($input['dekkimporter_field_markup']);
+            if ($markup >= 0 && $markup <= 10000) {
+                $sanitized['dekkimporter_field_markup'] = $markup;
+            } else {
+                add_settings_error('dekkimporter_options', 'invalid_markup', 'Price markup must be between 0 and 10000.');
+                $sanitized['dekkimporter_field_markup'] = 400; // Default
+            }
+        }
+
+        // Sanitize email fields
+        $email_fields = array(
+            'dekkimporter_bk_email',
+            'dekkimporter_bm_email',
+            'dekkimporter_field_notification_email',
+            'sync_notification_email',
+        );
+
+        foreach ($email_fields as $field) {
+            if (isset($input[$field]) && !empty($input[$field])) {
+                $email = sanitize_email($input[$field]);
+                if (is_email($email)) {
+                    $sanitized[$field] = $email;
+                } else {
+                    add_settings_error('dekkimporter_options', 'invalid_' . $field, ucfirst(str_replace('_', ' ', $field)) . ' is invalid.');
+                }
+            }
+        }
+
+        return $sanitized;
+    }
+
+    /**
+     * Sanitize sync interval
+     *
+     * @param string $input Sync interval
+     * @return string Sanitized interval
+     */
+    public function sanitize_sync_interval($input) {
+        $valid_intervals = array('hourly', 'twicedaily', 'daily', 'weekly');
+
+        if (in_array($input, $valid_intervals, true)) {
+            return sanitize_text_field($input);
+        }
+
+        add_settings_error('dekkimporter_sync_interval', 'invalid_interval', 'Invalid sync interval selected.');
+        return 'daily'; // Default
+    }
+
+    /**
+     * Sanitize log retention days
+     *
+     * @param int $input Retention days
+     * @return int Sanitized days
+     */
+    public function sanitize_log_retention($input) {
+        $days = absint($input);
+
+        if ($days >= 1 && $days <= 365) {
+            return $days;
+        }
+
+        add_settings_error('dekkimporter_log_retention_days', 'invalid_retention', 'Log retention must be between 1 and 365 days.');
+        return 7; // Default
     }
 
     /**
