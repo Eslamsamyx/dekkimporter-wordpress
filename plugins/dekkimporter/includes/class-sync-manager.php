@@ -59,6 +59,28 @@ class DekkImporter_Sync_Manager {
 
         $options = array_merge($defaults, $options);
 
+        // BUG FIX #5: Prevent concurrent syncs using transient lock
+        $lock_key = 'dekkimporter_sync_lock';
+        $lock_timeout = 3600; // 1 hour max
+
+        if (get_transient($lock_key)) {
+            $this->plugin->logger->log('Another sync is already running. Aborting.', 'WARNING');
+            return [
+                'products_fetched' => 0,
+                'products_created' => 0,
+                'products_updated' => 0,
+                'products_skipped' => 0,
+                'products_obsolete' => 0,
+                'products_deleted' => 0,
+                'errors' => 0,
+                'message' => 'Another sync is already running',
+                'status' => 'aborted',
+            ];
+        }
+
+        // Set lock
+        set_transient($lock_key, time(), $lock_timeout);
+
         $this->plugin->logger->log('=== FULL SYNC STARTED ===');
         $this->plugin->logger->log('Options: ' . json_encode($options));
 
@@ -157,6 +179,10 @@ class DekkImporter_Sync_Manager {
             $this->update_sync_status('failed', 'Sync failed: ' . $e->getMessage());
             $stats['errors']++;
         }
+
+        // BUG FIX #5: Release sync lock
+        delete_transient($lock_key);
+        $this->plugin->logger->log('Sync lock released');
 
         return $stats;
     }

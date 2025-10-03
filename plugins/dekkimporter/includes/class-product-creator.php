@@ -33,8 +33,13 @@ class DekkImporter_Product_Creator {
         $options = get_option('dekkimporter_options', []);
         $markup = isset($options['dekkimporter_field_markup']) ? (int)$options['dekkimporter_field_markup'] : 400;
 
-        // Calculate target price (subtract markup)
-        $target_price = $item['Price'] - $markup;
+        // Calculate target price (subtract markup) - BUG FIX #3: Prevent negative prices
+        $api_price = isset($item['Price']) ? floatval($item['Price']) : 0;
+        $target_price = max(0, $api_price - $markup);
+
+        if ($target_price === 0) {
+            $this->plugin->logger->log("Warning: Calculated price is 0 for {$item['sku']} (API price: {$api_price}, markup: {$markup})", 'WARNING');
+        }
 
         // Extract all product attributes from name and data
         $attributes = DekkImporter_Product_Helpers::build_attributes($item);
@@ -160,6 +165,7 @@ class DekkImporter_Product_Creator {
         $variation1 = new WC_Product_Variation();
         $variation1->set_attributes(['pa_negla' => 'nei']);
         $variation1->set_regular_price((string)$base_price);
+        $variation1->set_price((string)$base_price);  // BUG FIX #4: Set both _price and _regular_price
         $variation1->set_sku($sku . '-0');
         $variation1->set_parent_id($parent_id);
         $variation1->set_manage_stock(false); // Parent manages stock
@@ -167,13 +173,15 @@ class DekkImporter_Product_Creator {
 
         $this->plugin->logger->log("Variation created (no studs): {$sku}-0 (ID: {$variation1_id})");
 
-        // Variation 2: With studs (add 3000-4000 ISK)
-        $stud_markup = $item['RimSize'] >= 18 ? 4000 : 3000;
+        // Variation 2: With studs (add 3000-4000 ISK) - BUG FIX #6: Validate RimSize
+        $rim_size = isset($item['RimSize']) ? (int)$item['RimSize'] : 0;
+        $stud_markup = $rim_size >= 18 ? 4000 : 3000;
         $studded_price = $base_price + $stud_markup;
 
         $variation2 = new WC_Product_Variation();
         $variation2->set_attributes(['pa_negla' => 'ja']);
         $variation2->set_regular_price((string)$studded_price);
+        $variation2->set_price((string)$studded_price);  // BUG FIX #4: Set both _price and _regular_price
         $variation2->set_sku($sku . '-1');
         $variation2->set_parent_id($parent_id);
         $variation2->set_manage_stock(false); // Parent manages stock
@@ -182,89 +190,6 @@ class DekkImporter_Product_Creator {
         $this->plugin->logger->log("Variation created (with studs): {$sku}-1 (ID: {$variation2_id}, +{$stud_markup} ISK)");
     }
 
-    /**
-     * Update existing product
-     * Updates price, stock, and gallery images
-     *
-     * @param int $product_id Product ID
-     * @param array $item Product data from API
-     */
-    public function update_product($product_id, $item) {
-        $product = wc_get_product($product_id);
-        if (!$product) {
-            $this->plugin->logger->log("Product not found for update: ID {$product_id}", 'ERROR');
-            return false;
-        }
-
-        // Get markup setting
-        $options = get_option('dekkimporter_options', []);
-        $markup = isset($options['dekkimporter_field_markup']) ? (int)$options['dekkimporter_field_markup'] : 400;
-        $target_price = $item['Price'] - $markup;
-
-        $updated = false;
-
-        // Update price for simple products
-        if ($product->is_type('simple')) {
-            if ((string)$target_price !== $product->get_regular_price()) {
-                $product->set_regular_price((string)$target_price);
-                $updated = true;
-                $this->plugin->logger->log("Price updated: {$item['sku']} -> {$target_price}");
-            }
-        }
-
-        // Update price for variable products
-        if ($product->is_type('variable')) {
-            $children = array_map(function($id) {
-                return wc_get_product($id);
-            }, $product->get_children());
-
-            if (isset($children[0]) && $children[0] !== null) {
-                if ((string)$target_price !== $children[0]->get_regular_price()) {
-                    $children[0]->set_regular_price((string)$target_price);
-                    $children[0]->save();
-
-                    // Update studded variation
-                    $stud_markup = $item['RimSize'] >= 18 ? 4000 : 3000;
-                    $studded_price = $target_price + $stud_markup;
-                    $children[1]->set_regular_price((string)$studded_price);
-                    $children[1]->save();
-
-                    $updated = true;
-                    $this->plugin->logger->log("Variation prices updated: {$item['sku']}");
-                }
-            }
-        }
-
-        // Update stock quantity
-        if ($product->get_stock_quantity('edit') !== $item['QTY']) {
-            $product->set_stock_quantity($item['QTY']);
-            $updated = true;
-            $this->plugin->logger->log("Stock updated: {$item['sku']} -> {$item['QTY']}");
-        }
-
-        // Update gallery images if EU label exists
-        if (isset($item['EuSheeturl']) && !empty($item['EuSheeturl'])) {
-            if (isset($item['galleryPhotourl']) && !empty($item['galleryPhotourl'])) {
-                $gallery_image_id = DekkImporter_Product_Helpers::upload_image($item['galleryPhotourl']);
-                if ($gallery_image_id !== null) {
-                    $current_gallery_ids = $product->get_gallery_image_ids();
-
-                    // Only add if not already in gallery
-                    if (!in_array($gallery_image_id, $current_gallery_ids)) {
-                        $current_gallery_ids[] = $gallery_image_id;
-                        $product->set_gallery_image_ids($current_gallery_ids);
-                        $updated = true;
-                        $this->plugin->logger->log("Gallery image updated: {$item['sku']}");
-                    }
-                }
-            }
-        }
-
-        if ($updated) {
-            $product->save();
-            return true;
-        }
-
-        return false;
-    }
+    // BUG FIX #2: Removed dead code - update_product() method never called
+    // Product updates are handled by class-product-updater.php
 }

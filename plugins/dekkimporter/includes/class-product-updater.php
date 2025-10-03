@@ -61,7 +61,14 @@ class DekkImporter_Product_Updater {
         // Get markup setting
         $options = get_option('dekkimporter_options', []);
         $markup = isset($options['dekkimporter_field_markup']) ? (int)$options['dekkimporter_field_markup'] : 400;
-        $target_price = $item['Price'] - $markup;
+
+        // BUG FIX #3: Prevent negative prices
+        $api_price = isset($item['Price']) ? floatval($item['Price']) : 0;
+        $target_price = max(0, $api_price - $markup);
+
+        if ($target_price === 0) {
+            $this->plugin->logger->log("Warning: Calculated price is 0 for product ID {$product_id} (API price: {$api_price}, markup: {$markup})", 'WARNING');
+        }
 
         // Regenerate expected title
         $attributes = DekkImporter_Product_Helpers::build_attributes($item);
@@ -146,6 +153,35 @@ class DekkImporter_Product_Updater {
 
             $needs_save = true;
             $this->plugin->logger->log("Updated stock for variable product ID $product_id and its variations.");
+
+            // BUG FIX #1: Update variation prices when parent price changes
+            foreach ($variations as $variation_id) {
+                $variation = wc_get_product($variation_id);
+                if (!$variation) {
+                    continue;
+                }
+
+                $attributes = $variation->get_attributes();
+
+                // Check if this is "with studs" variation
+                if (isset($attributes['pa_negla']) && $attributes['pa_negla'] === 'ja') {
+                    // With studs: add stud markup based on rim size
+                    $rim_size = isset($item['RimSize']) ? (int)$item['RimSize'] : 0;
+                    $stud_markup = $rim_size >= 18 ? 4000 : 3000;
+                    $variation_price = $target_price + $stud_markup;
+                    $this->plugin->logger->log("Variation {$variation_id} with studs: price={$variation_price} (base {$target_price} + markup {$stud_markup})");
+                } else {
+                    // Without studs: base price
+                    $variation_price = $target_price;
+                    $this->plugin->logger->log("Variation {$variation_id} without studs: price={$variation_price}");
+                }
+
+                // Update variation prices (both _price and _regular_price)
+                update_post_meta($variation_id, '_regular_price', $variation_price);
+                update_post_meta($variation_id, '_price', $variation_price);
+            }
+
+            $this->plugin->logger->log("Updated prices for all variations of product ID $product_id.");
         } else {
             // Simple product: direct stock update
             if (get_post_meta($product_id, '_stock', true) != $new_stock) {
