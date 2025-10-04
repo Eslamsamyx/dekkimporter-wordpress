@@ -63,6 +63,7 @@ class DekkImporter_Product_Creator {
         $product->set_status('publish'); // Publish immediately
         $product->set_sku($item['sku']);
         $product->set_regular_price((string)$target_price);
+        $product->set_price((string)$target_price); // WooCommerce best practice: set both _price and _regular_price
         $product->set_name($product_name);
 
         // Set weight based on rim size

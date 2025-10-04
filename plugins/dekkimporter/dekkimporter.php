@@ -3,7 +3,7 @@
  * Plugin Name:       DekkImporter
  * Plugin URI:        mailto:zekonja993@gmail.com
  * Description:       Scraping and updating products.
- * Version:           2.2.2
+ * Version:           2.2.4
  * Requires at least: 5.2
  * Requires PHP:      7.2
  * Author:            Miljan Zekovic
@@ -18,7 +18,7 @@ if (!defined('ABSPATH')) {
 }
 
 // Define plugin constants
-define('DEKKIMPORTER_VERSION', '2.2.0');
+define('DEKKIMPORTER_VERSION', '2.2.4');
 define('DEKKIMPORTER_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('DEKKIMPORTER_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('DEKKIMPORTER_INCLUDES_DIR', DEKKIMPORTER_PLUGIN_DIR . 'includes/');
@@ -111,6 +111,13 @@ class DekkImporter {
     public $sync_manager;
 
     /**
+     * Cron manager instance
+     *
+     * @var DekkImporter_Cron_Manager
+     */
+    public $cron_manager;
+
+    /**
      * Get plugin instance
      *
      * @return DekkImporter
@@ -156,6 +163,10 @@ class DekkImporter {
         $this->product_creator = new DekkImporter_Product_Creator($this);
         $this->product_updater = new DekkImporter_Product_Updater($this);
         $this->sync_manager = new DekkImporter_Sync_Manager($this);
+        $this->cron_manager = new DekkImporter_Cron_Manager($this);
+
+        // Initialize cron manager hooks
+        $this->cron_manager->init();
     }
 
     /**
@@ -423,15 +434,15 @@ class DekkImporter {
                         </tr>
                         <tr>
                             <td><?php esc_html_e('Created', 'dekkimporter'); ?></td>
-                            <td><strong style="color: #28a745;"><?php echo absint($last_sync_stats['products_created'] ?? 0); ?></strong></td>
+                            <td><strong style="color: #10b981;"><?php echo absint($last_sync_stats['products_created'] ?? 0); ?></strong></td>
                         </tr>
                         <tr>
                             <td><?php esc_html_e('Updated', 'dekkimporter'); ?></td>
-                            <td><strong style="color: #007bff;"><?php echo absint($last_sync_stats['products_updated'] ?? 0); ?></strong></td>
+                            <td><strong style="color: #3b82f6;"><?php echo absint($last_sync_stats['products_updated'] ?? 0); ?></strong></td>
                         </tr>
                         <tr>
                             <td><?php esc_html_e('Errors', 'dekkimporter'); ?></td>
-                            <td><strong style="color: #dc3545;"><?php echo absint($last_sync_stats['errors'] ?? 0); ?></strong></td>
+                            <td><strong style="color: #ef4444;"><?php echo absint($last_sync_stats['errors'] ?? 0); ?></strong></td>
                         </tr>
                     </tbody>
                 </table>
@@ -440,9 +451,11 @@ class DekkImporter {
 
             <div class="dekkimporter-widget-actions">
                 <a href="<?php echo esc_url(admin_url('admin.php?page=dekkimporter')); ?>" class="button">
+                    <span class="dashicons dashicons-admin-settings"></span>
                     <?php esc_html_e('Settings', 'dekkimporter'); ?>
                 </a>
                 <a href="<?php echo esc_url(admin_url('admin.php?page=dekkimporter-logs')); ?>" class="button">
+                    <span class="dashicons dashicons-media-text"></span>
                     <?php esc_html_e('View Logs', 'dekkimporter'); ?>
                 </a>
             </div>

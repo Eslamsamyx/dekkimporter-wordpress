@@ -19,7 +19,7 @@ class DekkImporter_Product_Helpers {
      */
     public static function build_attributes($item) {
         $attributes = [];
-        $name = $item['ItemName'];
+        $name = $item['ItemName'] ?? '';
 
         // Helper function to add attribute (exact match to original)
         $add_attribute = function($key, $value, $visible = true, $variation = false) use (&$attributes) {
@@ -35,10 +35,10 @@ class DekkImporter_Product_Helpers {
             }
         };
 
-        // Extract dimensions
-        $add_attribute('breidd', (string)$item['Width']);
-        $add_attribute('haed', (string)$item['Height']);
-        $add_attribute('tommur', 'R' . $item['RimSize']);
+        // Extract dimensions (with isset checks to prevent warnings)
+        $add_attribute('breidd', (string)($item['Width'] ?? ''));
+        $add_attribute('haed', (string)($item['Height'] ?? ''));
+        $add_attribute('tommur', 'R' . ($item['RimSize'] ?? '0'));
 
         // Cargo tire detection (MUST come first) - v7 regex with x and comma support
         if (preg_match('/^\d{2,3}[\/x]\d{2}(?:,\d{1,2})?R\d{2}(?:,\d)?C/', $name)) {

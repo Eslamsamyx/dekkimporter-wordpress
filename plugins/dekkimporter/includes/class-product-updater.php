@@ -43,6 +43,9 @@ class DekkImporter_Product_Updater {
 
         $this->plugin->logger->log("Starting update for product ID: $product_id");
 
+        // Track if product needs to be saved
+        $needs_save = false;
+
         // Get post data
         $post = $wpdb->get_row($wpdb->prepare("SELECT * FROM $wpdb->posts WHERE ID = %d", $product_id));
         if (!$post) {
@@ -77,15 +80,9 @@ class DekkImporter_Product_Updater {
         // Sanitize for database security
         $expected_title = sanitize_text_field($expected_title);
 
-        // Update title if changed (direct $wpdb for performance)
+        // Update title if changed - WooCommerce CRUD
         if ($post->post_title !== $expected_title) {
-            $wpdb->update(
-                $wpdb->posts,
-                ['post_title' => $expected_title],
-                ['ID' => $product_id],
-                ['%s'],  // Data format
-                ['%d']   // Where format
-            );
+            $product->set_name($expected_title);
             $this->plugin->logger->log("Updated title for product ID $product_id from '{$post->post_title}' to '$expected_title'.");
             $needs_save = true;
         } else {
@@ -112,55 +109,62 @@ class DekkImporter_Product_Updater {
         // Sanitize for database security (allow safe HTML)
         $expected_description = wp_kses_post($expected_description);
 
-        // Update description if changed (direct $wpdb)
+        // Update description if changed - WooCommerce CRUD
         if ($post->post_content !== $expected_description) {
-            $wpdb->update(
-                $wpdb->posts,
-                ['post_content' => $expected_description],
-                ['ID' => $product_id],
-                ['%s'],  // Data format
-                ['%d']   // Where format
-            );
+            $product->set_description($expected_description);
             $this->plugin->logger->log("Updated description for product ID $product_id.");
+            $needs_save = true;
         }
 
-        // Stock management with product_visibility terms
-        $needs_save = false;
+        // Stock and Price management - WooCommerce CRUD Best Practice
         $new_stock = max(0, (int)$item['QTY'] - 4);
         $current_stock = $product->get_stock_quantity();
+        $current_price = $product->get_price();
 
         $this->plugin->logger->log("Stock check for product ID $product_id: current=$current_stock, new=$new_stock, api_qty={$item['QTY']}");
 
-        if ($product->is_type('variable')) {
-            // Variable product: parent manages stock, variations don't
-            update_post_meta($product_id, '_manage_stock', 'yes');
-            update_post_meta($product_id, '_stock', $new_stock);
-            update_post_meta($product_id, '_stock_status', ($new_stock > 0) ? 'instock' : 'outofstock');
+        // Update stock using CRUD
+        if ($current_stock != $new_stock) {
+            $product->set_manage_stock(true);
+            $product->set_stock_quantity($new_stock);
+            $product->set_stock_status($new_stock > 0 ? 'instock' : 'outofstock');
+            $needs_save = true;
+            $this->plugin->logger->log("Updated stock for product ID $product_id from $current_stock to $new_stock.");
 
-            // Set/remove product_visibility terms
+            // WooCommerce 3.0+ handles product_visibility automatically, but we maintain compatibility
             if ($new_stock > 0) {
                 wp_remove_object_terms($product_id, 'outofstock', 'product_visibility');
             } else {
                 wp_set_object_terms($product_id, 'outofstock', 'product_visibility', true);
             }
+        }
 
-            // Clear variation stock management (parent handles it)
-            $variations = $product->get_children();
-            foreach ($variations as $variation_id) {
-                update_post_meta($variation_id, '_manage_stock', 'no');
-                update_post_meta($variation_id, '_stock_status', '');
-            }
-
+        // Update price using CRUD
+        if ($current_price != $target_price) {
+            $product->set_regular_price((string)$target_price);
+            $product->set_price((string)$target_price);
             $needs_save = true;
-            $this->plugin->logger->log("Updated stock for variable product ID $product_id and its variations.");
+            $this->plugin->logger->log("Updated price for product ID $product_id from $current_price to $target_price.");
+        } else {
+            $this->plugin->logger->log("Price unchanged for product ID $product_id: $target_price");
+        }
 
-            // BUG FIX #1: Update variation prices when parent price changes
+        // Handle variable products
+        if ($product->is_type('variable')) {
+            $variations = $product->get_children();
+
+            // Update variation prices and clear their stock management
             foreach ($variations as $variation_id) {
                 $variation = wc_get_product($variation_id);
                 if (!$variation) {
                     continue;
                 }
 
+                // Clear variation stock management (parent handles it)
+                $variation->set_manage_stock(false);
+                $variation->set_stock_status('');
+
+                // Update variation prices
                 $attributes = $variation->get_attributes();
 
                 // Check if this is "with studs" variation
@@ -176,42 +180,16 @@ class DekkImporter_Product_Updater {
                     $this->plugin->logger->log("Variation {$variation_id} without studs: price={$variation_price}");
                 }
 
-                // Update variation prices (both _price and _regular_price)
-                update_post_meta($variation_id, '_regular_price', $variation_price);
-                update_post_meta($variation_id, '_price', $variation_price);
+                // Update variation prices using CRUD
+                $variation->set_regular_price((string)$variation_price);
+                $variation->set_price((string)$variation_price);
+                $variation->save();
+
+                // Clear variation cache
+                wc_delete_product_transients($variation_id);
             }
 
             $this->plugin->logger->log("Updated prices for all variations of product ID $product_id.");
-        } else {
-            // Simple product: direct stock update
-            if (get_post_meta($product_id, '_stock', true) != $new_stock) {
-                update_post_meta($product_id, '_stock', $new_stock);
-                update_post_meta($product_id, '_stock_status', ($new_stock > 0) ? 'instock' : 'outofstock');
-                update_post_meta($product_id, '_manage_stock', 'yes');
-
-                // Set/remove product_visibility terms
-                if ($new_stock > 0) {
-                    wp_remove_object_terms($product_id, 'outofstock', 'product_visibility');
-                    $this->plugin->logger->log("Removed 'outofstock' term for simple product ID $product_id.");
-                } else {
-                    wp_set_object_terms($product_id, 'outofstock', 'product_visibility', true);
-                    $this->plugin->logger->log("Assigned 'outofstock' term for simple product ID $product_id.");
-                }
-
-                $needs_save = true;
-                $this->plugin->logger->log("Updated stock for simple product ID $product_id to $new_stock.");
-            }
-        }
-
-        // Update price (set BOTH _price and _regular_price like v7)
-        $current_price = get_post_meta($product_id, '_price', true);
-        if ($current_price != $target_price) {
-            update_post_meta($product_id, '_regular_price', $target_price);
-            update_post_meta($product_id, '_price', $target_price);
-            $needs_save = true;
-            $this->plugin->logger->log("Updated price for product ID $product_id from $current_price to $target_price.");
-        } else {
-            $this->plugin->logger->log("Price unchanged for product ID $product_id: $target_price");
         }
 
         // Featured image update with filename comparison
@@ -260,19 +238,19 @@ class DekkImporter_Product_Updater {
             $this->plugin->logger->log("Checked and handled EuSheet image for product ID $product_id.");
         }
 
-        // Update post_modified timestamps (like v7)
+        // Save product if changes were made
         if ($needs_save) {
-            $wpdb->update(
-                $wpdb->posts,
-                [
-                    'post_modified' => current_time('mysql'),
-                    'post_modified_gmt' => current_time('mysql', 1)
-                ],
-                ['ID' => $product_id],
-                ['%s', '%s'],  // Data format
-                ['%d']         // Where format
-            );
+            $product->save(); // WordPress handles post_modified automatically
             $this->plugin->logger->log("Saved all updates for product ID $product_id.");
+
+            // WooCommerce action hooks - notify other plugins of changes
+            if ($current_stock != $new_stock) {
+                do_action('woocommerce_product_set_stock', $product);
+                do_action('woocommerce_product_stock_status_changed', $product_id, $product->get_stock_status());
+            }
+
+            // Clear product cache - WooCommerce best practice
+            $this->clear_product_cache($product_id);
         }
 
         $this->plugin->logger->log("Finished update for product ID $product_id");
@@ -295,5 +273,35 @@ class DekkImporter_Product_Updater {
         $extension = isset($path_info['extension']) ? strtolower($path_info['extension']) : '';
 
         return $name . '.' . $extension;
+    }
+
+    /**
+     * Clear WooCommerce product cache
+     * WooCommerce Best Practice: Always clear caches after product updates
+     *
+     * @param int $product_id Product ID
+     */
+    private function clear_product_cache($product_id) {
+        // Clear WooCommerce transients
+        wc_delete_product_transients($product_id);
+
+        // Clear object cache
+        wp_cache_delete('product-' . $product_id, 'products');
+        wp_cache_delete('woocommerce_product_' . $product_id, 'products');
+
+        // Clear post cache
+        clean_post_cache($product_id);
+
+        // Clear variable product cache if applicable
+        $product = wc_get_product($product_id);
+        if ($product && $product->is_type('variable')) {
+            foreach ($product->get_children() as $variation_id) {
+                wc_delete_product_transients($variation_id);
+                wp_cache_delete('product-' . $variation_id, 'products');
+                clean_post_cache($variation_id);
+            }
+        }
+
+        $this->plugin->logger->log("Cleared product cache for ID $product_id");
     }
 }

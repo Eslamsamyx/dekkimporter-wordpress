@@ -31,6 +31,11 @@ class DekkImporter_Cron {
      * @return array Modified schedules
      */
     public function add_custom_cron_intervals($schedules) {
+        $schedules['every15minutes'] = array(
+            'interval' => 15 * MINUTE_IN_SECONDS,
+            'display'  => esc_html__('Every 15 Minutes', 'dekkimporter'),
+        );
+
         $schedules['hourly'] = array(
             'interval' => HOUR_IN_SECONDS,
             'display'  => esc_html__('Hourly', 'dekkimporter'),

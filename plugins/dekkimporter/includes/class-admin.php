@@ -23,6 +23,8 @@ class DekkImporter_Admin {
         add_action('admin_init', array($this, 'register_settings'));
         add_action('admin_enqueue_scripts', array($this, 'enqueue_admin_assets'));
         add_action('wp_ajax_dekkimporter_manual_sync', array($this, 'handle_manual_sync'));
+        add_action('wp_ajax_dekkimporter_sync_progress', array($this, 'handle_sync_progress'));
+        add_action('wp_ajax_dekkimporter_stop_sync', array($this, 'handle_stop_sync'));
         add_action('update_option_dekkimporter_sync_interval', array($this, 'reschedule_cron'), 10, 2);
     }
 
@@ -104,7 +106,7 @@ class DekkImporter_Admin {
         add_settings_section(
             'dekkimporter_section',
             'Email Settings',
-            null,
+            array($this, 'render_email_section'),
             'dekkimporter'
         );
 
@@ -163,6 +165,31 @@ class DekkImporter_Admin {
             'sync_notification_email',
             'Sync Notification Email',
             array($this, 'render_sync_notification_email_field'),
+            'dekkimporter',
+            'dekkimporter_sync_section'
+        );
+
+        // Cron Manager Settings
+        add_settings_field(
+            'dekkimporter_field_auto_process_cron',
+            'Auto-Process Background Tasks',
+            array($this, 'render_auto_process_cron_field'),
+            'dekkimporter',
+            'dekkimporter_sync_section'
+        );
+
+        add_settings_field(
+            'dekkimporter_field_cron_batch_size',
+            'Task Batch Size',
+            array($this, 'render_cron_batch_size_field'),
+            'dekkimporter',
+            'dekkimporter_sync_section'
+        );
+
+        add_settings_field(
+            'dekkimporter_field_cron_interval',
+            'Cron Check Interval (Minutes)',
+            array($this, 'render_cron_interval_field'),
             'dekkimporter',
             'dekkimporter_sync_section'
         );
@@ -230,6 +257,31 @@ class DekkImporter_Admin {
             }
         }
 
+        // Sanitize cron manager settings
+        if (isset($input['dekkimporter_field_auto_process_cron'])) {
+            $sanitized['dekkimporter_field_auto_process_cron'] = (bool) $input['dekkimporter_field_auto_process_cron'];
+        }
+
+        if (isset($input['dekkimporter_field_cron_batch_size'])) {
+            $batch_size = absint($input['dekkimporter_field_cron_batch_size']);
+            if ($batch_size >= 1 && $batch_size <= 100) {
+                $sanitized['dekkimporter_field_cron_batch_size'] = $batch_size;
+            } else {
+                add_settings_error('dekkimporter_options', 'invalid_batch_size', 'Task batch size must be between 1 and 100.');
+                $sanitized['dekkimporter_field_cron_batch_size'] = 25; // Default
+            }
+        }
+
+        if (isset($input['dekkimporter_field_cron_interval'])) {
+            $interval = absint($input['dekkimporter_field_cron_interval']);
+            if ($interval >= 1 && $interval <= 60) {
+                $sanitized['dekkimporter_field_cron_interval'] = $interval;
+            } else {
+                add_settings_error('dekkimporter_options', 'invalid_cron_interval', 'Cron check interval must be between 1 and 60 minutes.');
+                $sanitized['dekkimporter_field_cron_interval'] = 15; // Default
+            }
+        }
+
         return $sanitized;
     }
 
@@ -240,7 +292,7 @@ class DekkImporter_Admin {
      * @return string Sanitized interval
      */
     public function sanitize_sync_interval($input) {
-        $valid_intervals = array('hourly', 'twicedaily', 'daily', 'weekly');
+        $valid_intervals = array('every15minutes', 'hourly', 'twicedaily', 'daily', 'weekly');
 
         if (in_array($input, $valid_intervals, true)) {
             return sanitize_text_field($input);
@@ -271,7 +323,28 @@ class DekkImporter_Admin {
      * Render API section description
      */
     public function render_api_section() {
-        echo '<p>' . esc_html__('Configure API endpoints and pricing settings for fetching products from suppliers.', 'dekkimporter') . '</p>';
+        ?>
+        <div class="dekkimporter-section-header">
+            <span class="dashicons dashicons-admin-site-alt3"></span>
+            <div class="section-description">
+                <p><?php esc_html_e('Configure API endpoints and pricing settings for fetching products from suppliers.', 'dekkimporter'); ?></p>
+            </div>
+        </div>
+        <?php
+    }
+
+    /**
+     * Render Email section description
+     */
+    public function render_email_section() {
+        ?>
+        <div class="dekkimporter-section-header">
+            <span class="dashicons dashicons-email"></span>
+            <div class="section-description">
+                <p><?php esc_html_e('Configure email addresses for supplier notifications and order processing.', 'dekkimporter'); ?></p>
+            </div>
+        </div>
+        <?php
     }
 
     /**
@@ -317,7 +390,14 @@ class DekkImporter_Admin {
      * Render sync section description
      */
     public function render_sync_section() {
-        echo '<p>' . esc_html__('Configure automatic synchronization and log management settings.', 'dekkimporter') . '</p>';
+        ?>
+        <div class="dekkimporter-section-header">
+            <span class="dashicons dashicons-update"></span>
+            <div class="section-description">
+                <p><?php esc_html_e('Configure automatic synchronization and log management settings.', 'dekkimporter'); ?></p>
+            </div>
+        </div>
+        <?php
     }
 
     /**
@@ -326,10 +406,11 @@ class DekkImporter_Admin {
     public function render_sync_interval_field() {
         $interval = get_option('dekkimporter_sync_interval', 'daily');
         $intervals = array(
-            'hourly'     => esc_html__('Hourly', 'dekkimporter'),
-            'twicedaily' => esc_html__('Twice Daily', 'dekkimporter'),
-            'daily'      => esc_html__('Daily', 'dekkimporter'),
-            'weekly'     => esc_html__('Weekly', 'dekkimporter'),
+            'every15minutes' => esc_html__('Every 15 Minutes', 'dekkimporter'),
+            'hourly'         => esc_html__('Hourly', 'dekkimporter'),
+            'twicedaily'     => esc_html__('Twice Daily', 'dekkimporter'),
+            'daily'          => esc_html__('Daily', 'dekkimporter'),
+            'weekly'         => esc_html__('Weekly', 'dekkimporter'),
         );
         ?>
         <select name="dekkimporter_sync_interval" id="dekkimporter_sync_interval">
@@ -371,29 +452,217 @@ class DekkImporter_Admin {
      */
     public function settings_page() {
         $next_sync = wp_next_scheduled('dekkimporter_sync_products');
+        $last_sync_stats = get_option('dekkimporter_last_sync_stats', array());
+        $last_sync_time = get_option('dekkimporter_last_sync_time', 0);
         ?>
-        <div class="wrap">
-            <h1>DekkImporter Settings</h1>
+        <div class="wrap dekkimporter-wrap">
+            <h1 class="wp-heading-inline">
+                <span class="dashicons dashicons-update"></span>
+                <?php esc_html_e('DekkImporter', 'dekkimporter'); ?>
+            </h1>
+            <hr class="wp-header-end">
 
             <?php if ($next_sync) : ?>
-                <div class="dekkimporter-sync-status">
-                    <h3><?php esc_html_e('Next Scheduled Sync:', 'dekkimporter'); ?></h3>
-                    <p>
-                        <span id="dekkimporter-countdown" data-timestamp="<?php echo esc_attr($next_sync); ?>"></span>
-                    </p>
-                    <button type="button" id="dekkimporter-manual-sync" class="button button-secondary">
-                        <?php esc_html_e('Run Manual Sync Now', 'dekkimporter'); ?>
-                    </button>
+                <!-- Sync Control Box -->
+                <div class="dekk-sync-control postbox">
+                    <div class="postbox-header">
+                        <h2 class="hndle">
+                            <span class="dashicons dashicons-clock"></span>
+                            <?php esc_html_e('Sync Control', 'dekkimporter'); ?>
+                        </h2>
+                    </div>
+                    <div class="inside">
+                        <div class="dekk-sync-info">
+                            <div class="dekk-countdown-section">
+                                <label><?php esc_html_e('Next Scheduled Sync', 'dekkimporter'); ?></label>
+                                <div class="dekk-countdown" id="dekkimporter-countdown" data-timestamp="<?php echo esc_attr($next_sync); ?>"></div>
+                            </div>
+                            <div class="dekk-action-section">
+                                <button type="button" id="dekkimporter-manual-sync" class="button button-primary button-hero">
+                                    <span class="dashicons dashicons-update"></span>
+                                    <?php esc_html_e('Run Manual Sync Now', 'dekkimporter'); ?>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Progress Container -->
+                <div id="dekkimporter-progress-container" class="dekk-progress-box postbox" style="display: none;">
+                    <div class="postbox-header">
+                        <h2 class="hndle">
+                            <span class="dashicons dashicons-update-alt"></span>
+                            <span id="progress-message"><?php esc_html_e('Sync in Progress', 'dekkimporter'); ?></span>
+                        </h2>
+                        <div class="dekk-progress-percent">
+                            <span id="progress-percentage">0%</span>
+                        </div>
+                    </div>
+                    <div class="inside">
+                        <!-- Progress Bar -->
+                        <div class="dekk-progress-bar-wrapper">
+                            <div class="dekk-progress-bar">
+                                <div id="progress-fill" class="dekk-progress-fill"></div>
+                            </div>
+                        </div>
+
+                        <!-- Stats Grid -->
+                        <div class="dekk-stats-grid">
+                            <div class="dekk-stat-item">
+                                <span class="dashicons dashicons-archive"></span>
+                                <div class="dekk-stat-content">
+                                    <span class="dekk-stat-label"><?php esc_html_e('Processed', 'dekkimporter'); ?></span>
+                                    <span class="dekk-stat-value" id="stat-processed">0 / 0</span>
+                                </div>
+                            </div>
+                            <div class="dekk-stat-item stat-created">
+                                <span class="dashicons dashicons-plus-alt"></span>
+                                <div class="dekk-stat-content">
+                                    <span class="dekk-stat-label"><?php esc_html_e('Created', 'dekkimporter'); ?></span>
+                                    <span class="dekk-stat-value" id="stat-created">0</span>
+                                </div>
+                            </div>
+                            <div class="dekk-stat-item stat-updated">
+                                <span class="dashicons dashicons-update"></span>
+                                <div class="dekk-stat-content">
+                                    <span class="dekk-stat-label"><?php esc_html_e('Updated', 'dekkimporter'); ?></span>
+                                    <span class="dekk-stat-value" id="stat-updated">0</span>
+                                </div>
+                            </div>
+                            <div class="dekk-stat-item stat-skipped">
+                                <span class="dashicons dashicons-controls-forward"></span>
+                                <div class="dekk-stat-content">
+                                    <span class="dekk-stat-label"><?php esc_html_e('Skipped', 'dekkimporter'); ?></span>
+                                    <span class="dekk-stat-value" id="stat-skipped">0</span>
+                                </div>
+                            </div>
+                            <div class="dekk-stat-item stat-time">
+                                <span class="dashicons dashicons-clock"></span>
+                                <div class="dekk-stat-content">
+                                    <span class="dekk-stat-label"><?php esc_html_e('Time Remaining', 'dekkimporter'); ?></span>
+                                    <span class="dekk-stat-value" id="stat-time-remaining">--</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Stop Button -->
+                        <div class="dekk-actions">
+                            <button type="button" id="dekkimporter-stop-sync" class="button button-secondary dekk-stop-btn">
+                                <span class="dashicons dashicons-no"></span>
+                                <?php esc_html_e('Stop Sync', 'dekkimporter'); ?>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             <?php endif; ?>
 
-            <form method="post" action="options.php">
-                <?php
-                settings_fields('dekkimporter_options');
-                do_settings_sections('dekkimporter');
-                submit_button();
-                ?>
-            </form>
+            <?php if (!empty($last_sync_stats)) : ?>
+                <!-- Stats Dashboard -->
+                <div class="dekk-stats-dashboard">
+                    <div class="dekk-stat-card dekk-stat-created">
+                        <div class="dekk-stat-icon">
+                            <span class="dashicons dashicons-plus-alt"></span>
+                        </div>
+                        <div class="dekk-stat-details">
+                            <span class="dekk-stat-number"><?php echo absint($last_sync_stats['products_created'] ?? 0); ?></span>
+                            <span class="dekk-stat-title"><?php esc_html_e('Products Created', 'dekkimporter'); ?></span>
+                        </div>
+                    </div>
+                    <div class="dekk-stat-card dekk-stat-updated">
+                        <div class="dekk-stat-icon">
+                            <span class="dashicons dashicons-update"></span>
+                        </div>
+                        <div class="dekk-stat-details">
+                            <span class="dekk-stat-number"><?php echo absint($last_sync_stats['products_updated'] ?? 0); ?></span>
+                            <span class="dekk-stat-title"><?php esc_html_e('Products Updated', 'dekkimporter'); ?></span>
+                        </div>
+                    </div>
+                    <div class="dekk-stat-card dekk-stat-fetched">
+                        <div class="dekk-stat-icon">
+                            <span class="dashicons dashicons-download"></span>
+                        </div>
+                        <div class="dekk-stat-details">
+                            <span class="dekk-stat-number"><?php echo absint($last_sync_stats['products_fetched'] ?? 0); ?></span>
+                            <span class="dekk-stat-title"><?php esc_html_e('Products Fetched', 'dekkimporter'); ?></span>
+                        </div>
+                    </div>
+                    <div class="dekk-stat-card dekk-stat-errors <?php echo (isset($last_sync_stats['errors']) && $last_sync_stats['errors'] > 0) ? 'has-errors' : ''; ?>">
+                        <div class="dekk-stat-icon">
+                            <span class="dashicons dashicons-warning"></span>
+                        </div>
+                        <div class="dekk-stat-details">
+                            <span class="dekk-stat-number"><?php echo absint($last_sync_stats['errors'] ?? 0); ?></span>
+                            <span class="dekk-stat-title"><?php esc_html_e('Errors', 'dekkimporter'); ?></span>
+                        </div>
+                    </div>
+                </div>
+
+                <?php if ($last_sync_time > 0) : ?>
+                    <p class="dekk-last-sync">
+                        <span class="dashicons dashicons-clock"></span>
+                        <?php
+                        printf(
+                            esc_html__('Last sync: %s', 'dekkimporter'),
+                            esc_html(date_i18n(get_option('date_format') . ' ' . get_option('time_format'), $last_sync_time))
+                        );
+                        ?>
+                    </p>
+                <?php endif; ?>
+
+                <!-- Error Log Display -->
+                <?php if (isset($last_sync_stats['errors']) && $last_sync_stats['errors'] > 0 && !empty($last_sync_stats['error_log'])) : ?>
+                    <div class="dekk-error-box postbox">
+                        <div class="postbox-header">
+                            <h2 class="hndle">
+                                <span class="dashicons dashicons-warning"></span>
+                                <?php esc_html_e('Sync Errors', 'dekkimporter'); ?>
+                                <span class="dekk-error-count">(<?php echo absint($last_sync_stats['errors']); ?>)</span>
+                            </h2>
+                        </div>
+                        <div class="inside">
+                            <table class="wp-list-table widefat fixed striped">
+                                <thead>
+                                    <tr>
+                                        <th width="15%"><?php esc_html_e('SKU', 'dekkimporter'); ?></th>
+                                        <th width="30%"><?php esc_html_e('Product Name', 'dekkimporter'); ?></th>
+                                        <th width="40%"><?php esc_html_e('Error Message', 'dekkimporter'); ?></th>
+                                        <th width="15%"><?php esc_html_e('Time', 'dekkimporter'); ?></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($last_sync_stats['error_log'] as $error) : ?>
+                                        <tr>
+                                            <td><code><?php echo esc_html($error['sku']); ?></code></td>
+                                            <td><strong><?php echo esc_html($error['name']); ?></strong></td>
+                                            <td><?php echo esc_html($error['message']); ?></td>
+                                            <td><?php echo esc_html(date_i18n(get_option('time_format'), strtotime($error['timestamp']))); ?></td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                <?php endif; ?>
+            <?php endif; ?>
+
+            <!-- Settings Form -->
+            <div class="dekk-settings-box postbox">
+                <div class="postbox-header">
+                    <h2 class="hndle">
+                        <span class="dashicons dashicons-admin-settings"></span>
+                        <?php esc_html_e('Configuration', 'dekkimporter'); ?>
+                    </h2>
+                </div>
+                <div class="inside">
+                    <form method="post" action="options.php">
+                        <?php
+                        settings_fields('dekkimporter_options');
+                        do_settings_sections('dekkimporter');
+                        submit_button();
+                        ?>
+                    </form>
+                </div>
+            </div>
         </div>
         <?php
     }
@@ -429,17 +698,42 @@ class DekkImporter_Admin {
             return;
         }
 
+        // Enqueue Bootstrap CSS (Local)
+        wp_enqueue_style(
+            'bootstrap',
+            DEKKIMPORTER_PLUGIN_URL . 'assets/bootstrap/bootstrap.min.css',
+            array(),
+            '5.3.2'
+        );
+
+        // Enqueue Bootstrap Icons (Local)
+        wp_enqueue_style(
+            'bootstrap-icons',
+            DEKKIMPORTER_PLUGIN_URL . 'assets/bootstrap-icons/bootstrap-icons.min.css',
+            array(),
+            '1.11.3'
+        );
+
         wp_enqueue_style(
             'dekkimporter-admin',
             DEKKIMPORTER_PLUGIN_URL . 'assets/css/admin.css',
-            array(),
+            array('bootstrap', 'bootstrap-icons'),
             DEKKIMPORTER_VERSION
+        );
+
+        // Enqueue Bootstrap JS (Local)
+        wp_enqueue_script(
+            'bootstrap-bundle',
+            DEKKIMPORTER_PLUGIN_URL . 'assets/bootstrap/bootstrap.bundle.min.js',
+            array(),
+            '5.3.2',
+            true
         );
 
         wp_enqueue_script(
             'dekkimporter-admin',
             DEKKIMPORTER_PLUGIN_URL . 'assets/js/admin.js',
-            array('jquery'),
+            array('jquery', 'bootstrap-bundle'),
             DEKKIMPORTER_VERSION,
             true
         );
@@ -451,6 +745,7 @@ class DekkImporter_Admin {
                 'ajaxUrl' => admin_url('admin-ajax.php'),
                 'nonces'  => array(
                     'manualSync' => wp_create_nonce('dekkimporter_manual_sync'),
+                    'stopSync'   => wp_create_nonce('dekkimporter_stop_sync'),
                 ),
             )
         );
@@ -467,7 +762,127 @@ class DekkImporter_Admin {
             return;
         }
 
-        $this->plugin->logger->log('=== MANUAL SYNC STARTED ===');
+        // Check if sync is already running
+        $lock_key = 'dekkimporter_sync_lock';
+        if (get_transient($lock_key)) {
+            wp_send_json_error(array('message' => 'Sync already in progress'));
+            return;
+        }
+
+        $this->plugin->logger->log('=== MANUAL SYNC STARTED (FASTCGI) ===');
+
+        // Increase PHP limits for long-running sync
+        @ini_set('max_execution_time', '0');
+        @ini_set('memory_limit', '1024M');
+        @set_time_limit(0);
+        ignore_user_abort(true);
+
+        // Prepare success response
+        $response = array(
+            'success' => true,
+            'data' => array(
+                'message' => 'Sync started in background',
+                'background' => true,
+            )
+        );
+
+        // Send response and close connection
+        if (function_exists('fastcgi_finish_request')) {
+            // For PHP-FPM
+            wp_send_json($response);
+            fastcgi_finish_request();
+        } else {
+            // For other environments - manually close connection
+            // Clear any existing output buffers
+            while (ob_get_level() > 0) {
+                ob_end_clean();
+            }
+
+            // Start new buffer
+            ob_start();
+
+            // Send headers
+            header('Content-Type: application/json; charset=utf-8');
+            header('Connection: close');
+
+            // Send JSON response
+            echo json_encode($response);
+
+            // Get the size and close
+            $size = ob_get_length();
+            header('Content-Length: ' . $size);
+
+            // Flush everything
+            ob_end_flush();
+            flush();
+
+            // Close session if exists
+            if (session_id()) {
+                session_write_close();
+            }
+        }
+
+        // Now run the sync in this same process (but connection is closed)
+        $this->run_sync_process();
+    }
+
+    /**
+     * Handle sync progress AJAX request
+     */
+    public function handle_sync_progress() {
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'Unauthorized'));
+            return;
+        }
+
+        $progress = get_transient('dekkimporter_sync_progress');
+
+        if ($progress === false) {
+            // No sync in progress
+            wp_send_json_success(array(
+                'in_progress' => false,
+                'message' => 'No sync in progress',
+            ));
+        } else {
+            wp_send_json_success(array(
+                'in_progress' => true,
+                'progress' => $progress,
+            ));
+        }
+    }
+
+    /**
+     * Handle stop sync AJAX request
+     */
+    public function handle_stop_sync() {
+        check_ajax_referer('dekkimporter_stop_sync', 'nonce');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(array('message' => 'Unauthorized'));
+            return;
+        }
+
+        $this->plugin->logger->log('=== SYNC STOP REQUESTED BY USER ===');
+
+        // Set cancellation flag
+        set_transient('dekkimporter_sync_cancelled', true, 300); // 5 minutes
+
+        // Clear locks and progress
+        delete_transient('dekkimporter_sync_lock');
+        delete_transient('dekkimporter_sync_progress');
+
+        $this->plugin->logger->log('Sync locks cleared, cancellation flag set');
+
+        wp_send_json_success(array(
+            'message' => 'Sync stopped successfully',
+        ));
+    }
+
+    /**
+     * Run the actual sync process (connection already closed to client)
+     */
+    private function run_sync_process() {
+        $this->plugin->logger->log('=== SYNC PROCESS EXECUTING (CONNECTION CLOSED) ===');
 
         $options = get_option('dekkimporter_options', array());
         $sync_options = array(
@@ -481,13 +896,8 @@ class DekkImporter_Admin {
         update_option('dekkimporter_last_sync_stats', $stats);
         update_option('dekkimporter_last_sync_time', time());
 
-        $this->plugin->logger->log('=== MANUAL SYNC COMPLETED ===');
+        $this->plugin->logger->log('=== SYNC PROCESS COMPLETED ===');
         $this->plugin->logger->log('Results: ' . json_encode($stats));
-
-        wp_send_json_success(array(
-            'message' => 'Sync completed successfully',
-            'stats'   => $stats,
-        ));
     }
 
     /**
@@ -497,5 +907,50 @@ class DekkImporter_Admin {
         if ($old_value !== $new_value) {
             $this->plugin->cron->activate();
         }
+    }
+
+    /**
+     * Render auto-process cron field (checkbox)
+     */
+    public function render_auto_process_cron_field() {
+        $options = get_option('dekkimporter_options', array());
+        $enabled = isset($options['dekkimporter_field_auto_process_cron']) ? (bool)$options['dekkimporter_field_auto_process_cron'] : true;
+        ?>
+        <label>
+            <input type="checkbox" name="dekkimporter_options[dekkimporter_field_auto_process_cron]" value="1" <?php checked($enabled, true); ?> />
+            <?php esc_html_e('Automatically process Action Scheduler and WordPress cron tasks after each sync', 'dekkimporter'); ?>
+        </label>
+        <p class="description">
+            <?php esc_html_e('When enabled, processes WooCommerce background tasks (like product attribute lookups) automatically after sync. This prevents task backlog and keeps your store performant. Recommended: Enabled', 'dekkimporter'); ?>
+        </p>
+        <?php
+    }
+
+    /**
+     * Render cron batch size field (number input)
+     */
+    public function render_cron_batch_size_field() {
+        $options = get_option('dekkimporter_options', array());
+        $batch_size = isset($options['dekkimporter_field_cron_batch_size']) ? (int)$options['dekkimporter_field_cron_batch_size'] : 25;
+        ?>
+        <input type="number" name="dekkimporter_options[dekkimporter_field_cron_batch_size]" value="<?php echo esc_attr($batch_size); ?>" min="1" max="100" class="small-text" />
+        <p class="description">
+            <?php esc_html_e('Maximum number of Action Scheduler tasks to process per sync. Lower values reduce server load. Higher values process backlogs faster. Default: 25', 'dekkimporter'); ?>
+        </p>
+        <?php
+    }
+
+    /**
+     * Render cron interval field (number input)
+     */
+    public function render_cron_interval_field() {
+        $options = get_option('dekkimporter_options', array());
+        $interval = isset($options['dekkimporter_field_cron_interval']) ? (int)$options['dekkimporter_field_cron_interval'] : 15;
+        ?>
+        <input type="number" name="dekkimporter_options[dekkimporter_field_cron_interval]" value="<?php echo esc_attr($interval); ?>" min="1" max="60" class="small-text" /> <?php esc_html_e('minutes', 'dekkimporter'); ?>
+        <p class="description">
+            <?php esc_html_e('If WordPress cron hasn\'t run for this many minutes, trigger it automatically after sync. Ensures cron tasks don\'t get stuck. Default: 15 minutes', 'dekkimporter'); ?>
+        </p>
+        <?php
     }
 }

@@ -97,6 +97,24 @@ class DekkImporter_Sync_Manager {
             'errors' => 0,
         ];
 
+        // Initialize progress tracking
+        $progress_key = 'dekkimporter_sync_progress';
+        $progress = [
+            'total' => 0,
+            'processed' => 0,
+            'created' => 0,
+            'updated' => 0,
+            'skipped' => 0,
+            'errors' => 0,
+            'start_time' => time(),
+            'status' => 'initializing',
+            'message' => 'Preparing sync...',
+        ];
+        set_transient($progress_key, $progress, 3600);
+
+        // Initialize error tracking
+        $error_log = [];
+
         $new_product_links = [];  // Track new product links for notifications (v7 parity)
 
         try {
@@ -105,6 +123,12 @@ class DekkImporter_Sync_Manager {
             $stats['products_fetched'] = count($api_products);
 
             $this->plugin->logger->log("Fetched {$stats['products_fetched']} products from API");
+
+            // Update progress with total count
+            $progress['total'] = $stats['products_fetched'];
+            $progress['status'] = 'processing';
+            $progress['message'] = 'Processing products...';
+            set_transient($progress_key, $progress, 3600);
 
             // Process products in batches
             $batches = array_chunk($api_products, $options['batch_size']);
@@ -118,6 +142,7 @@ class DekkImporter_Sync_Manager {
                     switch ($result['action']) {
                         case 'created':
                             $stats['products_created']++;
+                            $progress['created']++;
                             // Collect new product links for notification
                             if (isset($result['product_id'])) {
                                 $permalink = get_permalink($result['product_id']);
@@ -128,13 +153,42 @@ class DekkImporter_Sync_Manager {
                             break;
                         case 'updated':
                             $stats['products_updated']++;
+                            $progress['updated']++;
                             break;
                         case 'skipped':
                             $stats['products_skipped']++;
+                            $progress['skipped']++;
                             break;
                         case 'error':
                             $stats['errors']++;
+                            $progress['errors']++;
+                            // Track error details
+                            $error_log[] = [
+                                'sku' => $api_product['sku'] ?? 'Unknown',
+                                'name' => $api_product['name'] ?? 'Unknown Product',
+                                'message' => $result['message'] ?? 'Unknown error',
+                                'timestamp' => current_time('mysql'),
+                            ];
                             break;
+                    }
+
+                    // Update progress after each product
+                    $progress['processed']++;
+                    $elapsed = time() - $progress['start_time'];
+                    $rate = $progress['processed'] / max($elapsed, 1);
+                    $remaining = $progress['total'] - $progress['processed'];
+                    $progress['estimated_time'] = $remaining > 0 ? round($remaining / max($rate, 0.1)) : 0;
+                    $progress['percentage'] = $progress['total'] > 0 ? round(($progress['processed'] / $progress['total']) * 100, 1) : 0;
+                    $progress['message'] = sprintf('Processing %d of %d products...', $progress['processed'], $progress['total']);
+                    set_transient($progress_key, $progress, 3600);
+
+                    // Check for cancellation request
+                    if (get_transient('dekkimporter_sync_cancelled')) {
+                        $this->plugin->logger->log('SYNC CANCELLED BY USER at product ' . $progress['processed']);
+                        delete_transient('dekkimporter_sync_cancelled');
+                        delete_transient($lock_key);
+                        delete_transient($progress_key);
+                        throw new Exception('Sync cancelled by user');
                     }
                 }
 
@@ -144,8 +198,16 @@ class DekkImporter_Sync_Manager {
                 }
             }
 
+            // Update progress to show finalizing
+            $progress['percentage'] = 95;
+            $progress['message'] = 'Finalizing sync...';
+            set_transient($progress_key, $progress, 3600);
+
             // Handle obsolete products
             if ($options['handle_obsolete']) {
+                $progress['message'] = 'Handling obsolete products...';
+                set_transient($progress_key, $progress, 3600);
+
                 $obsolete_results = $this->handle_obsolete_products($api_products, $options['dry_run']);
                 $stats['products_obsolete'] = $obsolete_results['found'];
                 $stats['products_deleted'] = $obsolete_results['deleted'];
@@ -166,11 +228,14 @@ class DekkImporter_Sync_Manager {
             // Update sync status
             $this->update_sync_status('completed', 'Full sync completed successfully', $stats);
 
-            // Save stats
+            // Save stats with error log
+            $stats['error_log'] = $error_log;
             $this->save_sync_stats($stats);
 
             // Send new product notification email (v7 parity - lines 505-506, 1676-1694)
             if (!empty($new_product_links) && !$options['dry_run']) {
+                $progress['message'] = 'Sending notifications...';
+                set_transient($progress_key, $progress, 3600);
                 $this->send_new_product_notification($new_product_links);
             }
 
@@ -180,9 +245,27 @@ class DekkImporter_Sync_Manager {
             $stats['errors']++;
         }
 
+        // Set final progress state with complete stats
+        $progress['status'] = 'completed';
+        $progress['message'] = 'Sync completed!';
+        $progress['percentage'] = 100;
+        $progress['processed'] = $stats['products_fetched'];
+        $progress['total'] = $stats['products_fetched'];
+        $progress['created'] = $stats['products_created'];
+        $progress['updated'] = $stats['products_updated'];
+        $progress['skipped'] = $stats['products_skipped'];
+        $progress['errors'] = $stats['errors'];
+        $progress['estimated_time'] = 0;
+        set_transient($progress_key, $progress, 10); // Keep for 10 seconds so UI can show final state
+
+        // Note: Transient will auto-expire in 10 seconds, or can be cleared by next sync
+
         // BUG FIX #5: Release sync lock
         delete_transient($lock_key);
         $this->plugin->logger->log('Sync lock released');
+
+        // Fire completion hook for cron manager and other extensions
+        do_action('dekkimporter_sync_completed', $stats);
 
         return $stats;
     }
