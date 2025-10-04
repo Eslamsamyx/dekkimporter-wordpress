@@ -469,6 +469,7 @@ class DekkImporter_Product_Helpers {
         // Domain whitelist for security (prevent SSRF attacks)
         $allowed_domains = array(
             'bud.klettur.is',
+            'mitra.overcastcdn.com',  // Mitra (BM) product images
             'eprel.ec.europa.eu',
             'dekk1.is',
         );
