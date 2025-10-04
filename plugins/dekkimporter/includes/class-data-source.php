@@ -182,16 +182,17 @@ class DekkImporter_Data_Source {
     }
 
     /**
-     * Fetch products from BM supplier (Mitra) - includes 3 API endpoints
+     * Fetch products from BM supplier (Mitra) - includes 4 API endpoints
      */
     private function fetch_from_bm($api_url) {
         $this->plugin->logger->log("Fetching products from BM supplier: {$api_url}");
 
-        // Mitra has 3 endpoints
+        // Mitra has 4 endpoints
         $endpoints = [
             $api_url,
             $api_url . '?g=1',
             $api_url . '?g=2',
+            $api_url . '?g=3',
         ];
 
         $all_data = [];
