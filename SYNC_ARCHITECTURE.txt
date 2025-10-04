@@ -1,0 +1,199 @@
+================================================================================
+DEKKIMPORTER SYNC ARCHITECTURE
+================================================================================
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           DAILY CRON TRIGGER                                 │
+│                        (Every 24 hours at midnight)                          │
+└────────────────────────────────┬─────────────────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        SYNC MANAGER INITIATED                                │
+│  • Sets status to "running"                                                  │
+│  • Starts performance timer                                                  │
+│  • Initializes statistics tracking                                           │
+└────────────────────────────────┬─────────────────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     FETCH FROM SUPPLIER APIS                                 │
+│  ┌─────────────────┐          ┌─────────────────┐                          │
+│  │  BK Supplier    │          │  BM Supplier    │                          │
+│  │  API Endpoint   │          │  API Endpoint   │                          │
+│  └────────┬────────┘          └────────┬────────┘                          │
+│           │                             │                                    │
+│           ▼                             ▼                                    │
+│  ┌─────────────────────────────────────────────┐                           │
+│  │      NORMALIZE & VALIDATE DATA              │                           │
+│  │  • Add supplier suffix to SKU               │                           │
+│  │  • Sanitize all fields                      │                           │
+│  │  • Track API IDs                            │                           │
+│  └─────────────────┬───────────────────────────┘                           │
+└────────────────────┼─────────────────────────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         BATCH PROCESSING                                     │
+│  API Products: [P1, P2, P3, ... P100]                                      │
+│                                                                              │
+│  Split into batches of 50:                                                  │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐                     │
+│  │  Batch 1     │  │  Batch 2     │  │  Batch 3     │                     │
+│  │  (P1-P50)    │  │  (P51-P100)  │  │  (P101-...)  │                     │
+│  └──────┬───────┘  └──────┬───────┘  └──────┬───────┘                     │
+│         │                  │                  │                              │
+│         └──────────────────┴──────────────────┘                             │
+│                            │                                                 │
+│                  0.1s delay between batches                                 │
+└────────────────────────────┼─────────────────────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                   FOR EACH PRODUCT IN BATCH                                  │
+│                                                                              │
+│  ┌─────────────────────────────────────────┐                               │
+│  │  Does product exist? (Check by SKU)     │                               │
+│  └────────┬────────────────┬────────────────┘                               │
+│           │ NO             │ YES                                            │
+│           ▼                ▼                                                │
+│  ┌─────────────┐   ┌───────────────────────┐                              │
+│  │   CREATE    │   │  Has it changed?      │                              │
+│  │   PRODUCT   │   │  (Check last_modified │                              │
+│  │             │   │   vs last_sync)       │                              │
+│  │  • Set SKU  │   └────────┬──────────────┘                              │
+│  │  • Set price│            │ YES    │ NO                                  │
+│  │  • Set stock│            ▼        ▼                                     │
+│  │  • Add meta │   ┌─────────────┐  ┌─────────┐                           │
+│  │             │   │   UPDATE    │  │  SKIP   │                           │
+│  │  Metadata:  │   │   PRODUCT   │  │         │                           │
+│  │  • last_sync│   │             │  │ Return  │                           │
+│  │  • api_id   │   │  • Update   │  │ stats   │                           │
+│  │  • supplier │   │    fields   │  └─────────┘                           │
+│  │  • count=1  │   │  • Increment│                                         │
+│  └─────────────┘   │    count    │                                         │
+│                    │  • Update   │                                         │
+│                    │    last_sync│                                         │
+│                    └─────────────┘                                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                    OBSOLETE PRODUCT DETECTION                                │
+│                                                                              │
+│  Current API SKUs: [SKU1, SKU2, SKU3, ...]                                 │
+│  Database Products: [SKU1, SKU2, SKU3, SKU4-OLD, SKU5-OLD]                 │
+│                                                                              │
+│  Delta Detection:                                                           │
+│  ┌────────────────────────────────────────────────┐                        │
+│  │  Find products in DB but NOT in API            │                        │
+│  └─────────────────┬──────────────────────────────┘                        │
+│                    │                                                        │
+│                    ▼                                                        │
+│  Obsolete Products: [SKU4-OLD, SKU5-OLD]                                   │
+│                                                                              │
+│  For each obsolete product:                                                 │
+│  ┌────────────────────────────────────────────────┐                        │
+│  │  1. Mark with "_obsolete_check" timestamp      │                        │
+│  │  2. Check how long it's been obsolete          │                        │
+│  │  3. If >= 7 days:                              │                        │
+│  │     ┌──────────────────────────────────────┐  │                        │
+│  │     │  Action based on setting:            │  │                        │
+│  │     │  • draft → Set to draft status       │  │                        │
+│  │     │  • delete → Permanently remove       │  │                        │
+│  │     │  • out_of_stock → Mark unavailable   │  │                        │
+│  │     └──────────────────────────────────────┘  │                        │
+│  └────────────────────────────────────────────────┘                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         STATISTICS COLLECTION                                │
+│  ┌───────────────────────────────────────────────────────────────┐         │
+│  │  • Products Fetched from API                                  │         │
+│  │  • Products Created                                            │         │
+│  │  • Products Updated                                            │         │
+│  │  • Products Skipped (no changes)                               │         │
+│  │  • Obsolete Products Found                                     │         │
+│  │  • Products Deleted/Drafted                                    │         │
+│  │  • Errors Encountered                                          │         │
+│  │  • Total Duration                                              │         │
+│  │  • Products Per Second                                         │         │
+│  └───────────────────────────────────────────────────────────────┘         │
+└────────────────────────────────┬─────────────────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                             LOGGING & REPORTING                              │
+│  ┌────────────────┐              ┌────────────────┐                        │
+│  │  Write to Log  │              │  Email Report  │                        │
+│  │  File          │              │  (if enabled)  │                        │
+│  │                │              │                 │                        │
+│  │  dekkimporter- │              │  To: Admin     │                        │
+│  │  YYYY-MM-DD.   │              │                 │                        │
+│  │  log           │              │  Subject:      │                        │
+│  │                │              │  Daily Sync    │                        │
+│  │  • Timestamps  │              │  Report        │                        │
+│  │  • Actions     │              │                 │                        │
+│  │  • Errors      │              │  Content:      │                        │
+│  │  • Stats       │              │  • Statistics  │                        │
+│  └────────────────┘              │  • Tables      │                        │
+│                                  │  • Links       │                        │
+│                                  └────────────────┘                        │
+└────────────────────────────────┬─────────────────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      UPDATE SYNC STATUS & HISTORY                            │
+│  • Set status to "completed"                                                │
+│  • Save statistics to history (keep last 30)                                │
+│  • Update last_full_sync timestamp                                          │
+│  • Clear "running" flag                                                     │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+================================================================================
+METADATA TRACKED PER PRODUCT
+================================================================================
+
+_dekkimporter_last_sync          → 2025-10-02 10:05:54
+_dekkimporter_api_id             → API-BK-001
+_dekkimporter_supplier           → BK
+_dekkimporter_sync_count         → 47
+_dekkimporter_obsolete_check     → (empty or date)
+
+================================================================================
+STALENESS DETECTION QUERY
+================================================================================
+
+SELECT * FROM wp_posts 
+WHERE post_type = 'product'
+AND meta_key = '_dekkimporter_last_sync'
+AND meta_value < DATE_SUB(NOW(), INTERVAL 7 DAY)
+
+Result: Products not synced in 7+ days
+
+================================================================================
+KEY DESIGN DECISIONS
+================================================================================
+
+1. GRACE PERIOD (7 days)
+   Why: Prevents accidental deletion from temporary API outages
+   Example: API down for 1 day → products not immediately deleted
+
+2. BATCH PROCESSING (50 products/batch)
+   Why: Prevents server overload and timeout issues
+   Example: 1000 products = 20 batches with delays
+
+3. SKIP UNCHANGED PRODUCTS
+   Why: Reduces unnecessary database writes
+   Example: Price hasn't changed → skip update
+
+4. METADATA TRACKING
+   Why: Enables staleness detection and audit trail
+   Example: Know when each product was last updated
+
+5. CONFIGURABLE ACTIONS
+   Why: Different stores have different needs
+   Example: Some want to delete, others prefer draft
+
+================================================================================

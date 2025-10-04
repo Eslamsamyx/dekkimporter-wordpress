@@ -1,0 +1,247 @@
+[2025-10-02 09:31:47] [INFO] Test log entry
+[2025-10-02 09:31:47] [INFO] Product created: Test Product BK (ID: 11)
+[2025-10-02 09:31:47] [INFO] Product created: Test Product Update (ID: 12)
+[2025-10-02 09:31:48] [INFO] Product updated: ID 12
+[2025-10-02 09:31:48] [ERROR] Mail Error: Invalid address:  (From): wordpress@localhost
+[2025-10-02 09:52:11] [ERROR] Mail Error: Could not instantiate mail function.
+[2025-10-02 09:52:11] [ERROR] Mail Error: Could not instantiate mail function.
+[2025-10-02 09:52:11] [ERROR] Mail Error: Could not instantiate mail function.
+[2025-10-02 09:52:11] [INFO] Failed to send email to Klettur supplier: bk-supplier@test.local
+[2025-10-02 09:52:11] [ERROR] Mail Error: Could not instantiate mail function.
+[2025-10-02 09:52:11] [INFO] Failed to send email to Mitra supplier: bm-supplier@test.local
+[2025-10-02 09:53:06] [INFO] Product sync started
+[2025-10-02 09:53:06] [INFO] Product sync completed
+[2025-10-02 10:05:11] [INFO] Product created: Test Product BK #1 (ID: 16)
+[2025-10-02 10:05:11] [INFO] Product created: Test Product BK #2 (ID: 17)
+[2025-10-02 10:05:11] [INFO] Product created: Test Product BK #3 (ID: 18)
+[2025-10-02 10:05:12] [INFO] Product created: Test Product BK #4 (ID: 19)
+[2025-10-02 10:05:12] [INFO] Product created: Test Product BK #5 (ID: 20)
+[2025-10-02 10:05:12] [INFO] Product created: Test Product BK #6 (ID: 21)
+[2025-10-02 10:05:12] [INFO] Product created: Test Product BK #7 (ID: 22)
+[2025-10-02 10:05:12] [INFO] Product created: Test Product BK #8 (ID: 23)
+[2025-10-02 10:05:12] [INFO] Product created: Test Product BK #9 (ID: 24)
+[2025-10-02 10:05:13] [INFO] Product created: Test Product BK #10 (ID: 25)
+[2025-10-02 10:05:13] [INFO] Product created: Test Product BK #11 (ID: 26)
+[2025-10-02 10:05:13] [INFO] Product created: Test Product BK #12 (ID: 27)
+[2025-10-02 10:05:13] [INFO] Product created: Test Product BK #13 (ID: 28)
+[2025-10-02 10:05:13] [INFO] Product created: Test Product BK #14 (ID: 29)
+[2025-10-02 10:05:13] [INFO] Product created: Test Product BK #15 (ID: 30)
+[2025-10-02 10:05:13] [INFO] Product created: Test Product BK #16 (ID: 31)
+[2025-10-02 10:05:13] [INFO] Product created: Test Product BK #17 (ID: 32)
+[2025-10-02 10:05:14] [INFO] Product created: Test Product BK #18 (ID: 33)
+[2025-10-02 10:05:14] [INFO] Product created: Test Product BK #19 (ID: 34)
+[2025-10-02 10:05:14] [INFO] Product created: Test Product BK #20 (ID: 35)
+[2025-10-02 10:05:14] [INFO] Product created: Test Product BM #1 (ID: 36)
+[2025-10-02 10:05:14] [INFO] Product created: Test Product BM #2 (ID: 37)
+[2025-10-02 10:05:14] [INFO] Product created: Test Product BM #3 (ID: 38)
+[2025-10-02 10:05:14] [INFO] Product created: Test Product BM #4 (ID: 39)
+[2025-10-02 10:05:14] [INFO] Product created: Test Product BM #5 (ID: 40)
+[2025-10-02 10:05:14] [INFO] Product created: Test Product BM #6 (ID: 41)
+[2025-10-02 10:05:14] [INFO] Product created: Test Product BM #7 (ID: 42)
+[2025-10-02 10:05:14] [INFO] Product created: Test Product BM #8 (ID: 43)
+[2025-10-02 10:05:15] [INFO] Product created: Test Product BM #9 (ID: 44)
+[2025-10-02 10:05:15] [INFO] Product created: Test Product BM #10 (ID: 45)
+[2025-10-02 10:05:15] [INFO] Product created: Test Product BM #11 (ID: 46)
+[2025-10-02 10:05:15] [INFO] Product created: Test Product BM #12 (ID: 47)
+[2025-10-02 10:05:15] [INFO] Product created: Test Product BM #13 (ID: 48)
+[2025-10-02 10:05:15] [INFO] Product created: Test Product BM #14 (ID: 49)
+[2025-10-02 10:05:16] [INFO] Product created: Test Product BM #15 (ID: 50)
+[2025-10-02 10:05:16] [INFO] Product updated: ID 19
+[2025-10-02 10:05:16] [INFO] Product updated: ID 21
+[2025-10-02 10:05:16] [INFO] Product updated: ID 23
+[2025-10-02 10:05:16] [INFO] Product updated: ID 30
+[2025-10-02 10:05:16] [INFO] Product updated: ID 33
+[2025-10-02 10:05:16] [INFO] Product updated: ID 39
+[2025-10-02 10:05:16] [INFO] Product updated: ID 40
+[2025-10-02 10:05:16] [INFO] Product updated: ID 43
+[2025-10-02 10:05:16] [INFO] Product updated: ID 44
+[2025-10-02 10:05:16] [INFO] Product updated: ID 49
+[2025-10-02 10:05:16] [INFO] Product updated: ID 16
+[2025-10-02 10:05:16] [INFO] Product updated: ID 18
+[2025-10-02 10:05:16] [INFO] Product updated: ID 29
+[2025-10-02 10:05:16] [INFO] Product updated: ID 31
+[2025-10-02 10:05:16] [INFO] Product updated: ID 32
+[2025-10-02 10:05:16] [INFO] Product updated: ID 33
+[2025-10-02 10:05:16] [INFO] Product updated: ID 38
+[2025-10-02 10:05:16] [INFO] Product updated: ID 39
+[2025-10-02 10:05:16] [INFO] Product updated: ID 42
+[2025-10-02 10:05:16] [INFO] Product updated: ID 48
+[2025-10-02 10:05:16] [INFO] Product updated: ID 16
+[2025-10-02 10:05:16] [INFO] Product updated: ID 18
+[2025-10-02 10:05:16] [INFO] Product updated: ID 20
+[2025-10-02 10:05:16] [INFO] Product updated: ID 33
+[2025-10-02 10:05:16] [INFO] Product updated: ID 34
+[2025-10-02 10:05:16] [INFO] Product updated: ID 36
+[2025-10-02 10:05:16] [INFO] Product updated: ID 43
+[2025-10-02 10:05:17] [INFO] Product updated: ID 46
+[2025-10-02 10:05:17] [INFO] Product updated: ID 47
+[2025-10-02 10:05:17] [INFO] Product updated: ID 48
+[2025-10-02 10:05:17] [INFO] Product updated: ID 20
+[2025-10-02 10:05:17] [INFO] Product updated: ID 24
+[2025-10-02 10:05:17] [INFO] Product updated: ID 27
+[2025-10-02 10:05:17] [INFO] Product updated: ID 29
+[2025-10-02 10:05:17] [INFO] Product updated: ID 33
+[2025-10-02 10:05:17] [INFO] Product updated: ID 35
+[2025-10-02 10:05:17] [INFO] Product updated: ID 36
+[2025-10-02 10:05:17] [INFO] Product updated: ID 38
+[2025-10-02 10:05:17] [INFO] Product updated: ID 45
+[2025-10-02 10:05:17] [INFO] Product updated: ID 47
+[2025-10-02 10:05:17] [INFO] Product updated: ID 20
+[2025-10-02 10:05:17] [INFO] Product updated: ID 21
+[2025-10-02 10:05:17] [INFO] Product updated: ID 27
+[2025-10-02 10:05:17] [INFO] Product updated: ID 31
+[2025-10-02 10:05:17] [INFO] Product updated: ID 33
+[2025-10-02 10:05:17] [INFO] Product updated: ID 40
+[2025-10-02 10:05:17] [INFO] Product updated: ID 41
+[2025-10-02 10:05:17] [INFO] Product updated: ID 43
+[2025-10-02 10:05:17] [INFO] Product updated: ID 46
+[2025-10-02 10:05:17] [INFO] Product updated: ID 48
+[2025-10-02 10:05:17] [INFO] Product updated: ID 16
+[2025-10-02 10:05:17] [INFO] Product updated: ID 17
+[2025-10-02 10:05:17] [INFO] Product updated: ID 31
+[2025-10-02 10:05:17] [INFO] Product updated: ID 34
+[2025-10-02 10:05:17] [INFO] Product updated: ID 39
+[2025-10-02 10:05:17] [INFO] Product updated: ID 40
+[2025-10-02 10:05:17] [INFO] Product updated: ID 43
+[2025-10-02 10:05:17] [INFO] Product updated: ID 44
+[2025-10-02 10:05:17] [INFO] Product updated: ID 48
+[2025-10-02 10:05:17] [INFO] Product updated: ID 50
+[2025-10-02 10:05:17] [INFO] === FULL SYNC STARTED ===
+[2025-10-02 10:05:17] [INFO] Options: {"handle_obsolete":true,"batch_size":10,"dry_run":true}
+[2025-10-02 10:05:50] [INFO] Product created: Test Product BK #1 (ID: 51)
+[2025-10-02 10:05:50] [INFO] Product created: Test Product BK #2 (ID: 52)
+[2025-10-02 10:05:50] [INFO] Product created: Test Product BK #3 (ID: 53)
+[2025-10-02 10:05:50] [INFO] Product created: Test Product BK #4 (ID: 54)
+[2025-10-02 10:05:50] [INFO] Product created: Test Product BK #5 (ID: 55)
+[2025-10-02 10:05:50] [INFO] Product created: Test Product BK #6 (ID: 56)
+[2025-10-02 10:05:50] [INFO] Product created: Test Product BK #7 (ID: 57)
+[2025-10-02 10:05:51] [INFO] Product created: Test Product BK #8 (ID: 58)
+[2025-10-02 10:05:51] [INFO] Product created: Test Product BK #9 (ID: 59)
+[2025-10-02 10:05:51] [INFO] Product created: Test Product BK #10 (ID: 60)
+[2025-10-02 10:05:51] [INFO] Product created: Test Product BK #11 (ID: 61)
+[2025-10-02 10:05:51] [INFO] Product created: Test Product BK #12 (ID: 62)
+[2025-10-02 10:05:51] [INFO] Product created: Test Product BK #13 (ID: 63)
+[2025-10-02 10:05:51] [INFO] Product created: Test Product BK #14 (ID: 64)
+[2025-10-02 10:05:51] [INFO] Product created: Test Product BK #15 (ID: 65)
+[2025-10-02 10:05:51] [INFO] Product created: Test Product BK #16 (ID: 66)
+[2025-10-02 10:05:51] [INFO] Product created: Test Product BK #17 (ID: 67)
+[2025-10-02 10:05:51] [INFO] Product created: Test Product BK #18 (ID: 68)
+[2025-10-02 10:05:51] [INFO] Product created: Test Product BK #19 (ID: 69)
+[2025-10-02 10:05:51] [INFO] Product created: Test Product BK #20 (ID: 70)
+[2025-10-02 10:05:51] [INFO] Product created: Test Product BM #1 (ID: 71)
+[2025-10-02 10:05:51] [INFO] Product created: Test Product BM #2 (ID: 72)
+[2025-10-02 10:05:52] [INFO] Product created: Test Product BM #3 (ID: 73)
+[2025-10-02 10:05:52] [INFO] Product created: Test Product BM #4 (ID: 74)
+[2025-10-02 10:05:52] [INFO] Product created: Test Product BM #5 (ID: 75)
+[2025-10-02 10:05:52] [INFO] Product created: Test Product BM #6 (ID: 76)
+[2025-10-02 10:05:52] [INFO] Product created: Test Product BM #7 (ID: 77)
+[2025-10-02 10:05:52] [INFO] Product created: Test Product BM #8 (ID: 78)
+[2025-10-02 10:05:52] [INFO] Product created: Test Product BM #9 (ID: 79)
+[2025-10-02 10:05:52] [INFO] Product created: Test Product BM #10 (ID: 80)
+[2025-10-02 10:05:52] [INFO] Product created: Test Product BM #11 (ID: 81)
+[2025-10-02 10:05:52] [INFO] Product created: Test Product BM #12 (ID: 82)
+[2025-10-02 10:05:52] [INFO] Product created: Test Product BM #13 (ID: 83)
+[2025-10-02 10:05:52] [INFO] Product created: Test Product BM #14 (ID: 84)
+[2025-10-02 10:05:52] [INFO] Product created: Test Product BM #15 (ID: 85)
+[2025-10-02 10:05:53] [INFO] Product updated: ID 55
+[2025-10-02 10:05:53] [INFO] Product updated: ID 57
+[2025-10-02 10:05:53] [INFO] Product updated: ID 58
+[2025-10-02 10:05:53] [INFO] Product updated: ID 60
+[2025-10-02 10:05:53] [INFO] Product updated: ID 65
+[2025-10-02 10:05:53] [INFO] Product updated: ID 69
+[2025-10-02 10:05:53] [INFO] Product updated: ID 73
+[2025-10-02 10:05:53] [INFO] Product updated: ID 75
+[2025-10-02 10:05:53] [INFO] Product updated: ID 83
+[2025-10-02 10:05:53] [INFO] Product updated: ID 85
+[2025-10-02 10:05:53] [INFO] Product updated: ID 56
+[2025-10-02 10:05:53] [INFO] Product updated: ID 58
+[2025-10-02 10:05:53] [INFO] Product updated: ID 60
+[2025-10-02 10:05:53] [INFO] Product updated: ID 67
+[2025-10-02 10:05:53] [INFO] Product updated: ID 68
+[2025-10-02 10:05:53] [INFO] Product updated: ID 69
+[2025-10-02 10:05:53] [INFO] Product updated: ID 72
+[2025-10-02 10:05:53] [INFO] Product updated: ID 81
+[2025-10-02 10:05:53] [INFO] Product updated: ID 82
+[2025-10-02 10:05:53] [INFO] Product updated: ID 85
+[2025-10-02 10:05:53] [INFO] Product updated: ID 51
+[2025-10-02 10:05:53] [INFO] Product updated: ID 53
+[2025-10-02 10:05:53] [INFO] Product updated: ID 55
+[2025-10-02 10:05:53] [INFO] Product updated: ID 58
+[2025-10-02 10:05:53] [INFO] Product updated: ID 64
+[2025-10-02 10:05:53] [INFO] Product updated: ID 66
+[2025-10-02 10:05:53] [INFO] Product updated: ID 67
+[2025-10-02 10:05:53] [INFO] Product updated: ID 69
+[2025-10-02 10:05:53] [INFO] Product updated: ID 73
+[2025-10-02 10:05:53] [INFO] Product updated: ID 82
+[2025-10-02 10:05:53] [INFO] Product updated: ID 52
+[2025-10-02 10:05:53] [INFO] Product updated: ID 53
+[2025-10-02 10:05:53] [INFO] Product updated: ID 60
+[2025-10-02 10:05:53] [INFO] Product updated: ID 61
+[2025-10-02 10:05:53] [INFO] Product updated: ID 65
+[2025-10-02 10:05:53] [INFO] Product updated: ID 69
+[2025-10-02 10:05:53] [INFO] Product updated: ID 75
+[2025-10-02 10:05:53] [INFO] Product updated: ID 78
+[2025-10-02 10:05:53] [INFO] Product updated: ID 79
+[2025-10-02 10:05:53] [INFO] Product updated: ID 83
+[2025-10-02 10:05:53] [INFO] Product updated: ID 53
+[2025-10-02 10:05:53] [INFO] Product updated: ID 54
+[2025-10-02 10:05:53] [INFO] Product updated: ID 60
+[2025-10-02 10:05:53] [INFO] Product updated: ID 61
+[2025-10-02 10:05:53] [INFO] Product updated: ID 67
+[2025-10-02 10:05:53] [INFO] Product updated: ID 73
+[2025-10-02 10:05:53] [INFO] Product updated: ID 74
+[2025-10-02 10:05:53] [INFO] Product updated: ID 76
+[2025-10-02 10:05:53] [INFO] Product updated: ID 77
+[2025-10-02 10:05:53] [INFO] Product updated: ID 80
+[2025-10-02 10:05:53] [INFO] Product updated: ID 52
+[2025-10-02 10:05:53] [INFO] Product updated: ID 55
+[2025-10-02 10:05:54] [INFO] Product updated: ID 61
+[2025-10-02 10:05:54] [INFO] Product updated: ID 62
+[2025-10-02 10:05:54] [INFO] Product updated: ID 65
+[2025-10-02 10:05:54] [INFO] Product updated: ID 69
+[2025-10-02 10:05:54] [INFO] Product updated: ID 79
+[2025-10-02 10:05:54] [INFO] Product updated: ID 82
+[2025-10-02 10:05:54] [INFO] Product updated: ID 83
+[2025-10-02 10:05:54] [INFO] Product updated: ID 85
+[2025-10-02 10:05:54] [INFO] === FULL SYNC STARTED ===
+[2025-10-02 10:05:54] [INFO] Options: {"handle_obsolete":true,"batch_size":10,"dry_run":true}
+[2025-10-02 10:05:54] [INFO] Fetched 25 products from API
+[2025-10-02 10:05:54] [INFO] Processing batch 1 of 3
+[2025-10-02 10:05:54] [INFO] [DRY RUN] Would update product: Test Product BK #1 (ID: 51)
+[2025-10-02 10:05:54] [INFO] [DRY RUN] Would update product: Test Product BK #2 (ID: 52)
+[2025-10-02 10:05:54] [INFO] [DRY RUN] Would update product: Test Product BK #3 (ID: 53)
+[2025-10-02 10:05:54] [INFO] [DRY RUN] Would update product: Test Product BK #4 (ID: 54)
+[2025-10-02 10:05:54] [INFO] [DRY RUN] Would update product: Test Product BK #5 (ID: 55)
+[2025-10-02 10:05:54] [INFO] [DRY RUN] Would update product: Test Product BK #6 (ID: 56)
+[2025-10-02 10:05:54] [INFO] [DRY RUN] Would update product: Test Product BK #7 (ID: 57)
+[2025-10-02 10:05:54] [INFO] [DRY RUN] Would update product: Test Product BK #8 (ID: 58)
+[2025-10-02 10:05:54] [INFO] [DRY RUN] Would update product: Test Product BK #9 (ID: 59)
+[2025-10-02 10:05:54] [INFO] [DRY RUN] Would update product: Test Product BK #10 (ID: 60)
+[2025-10-02 10:05:54] [INFO] Processing batch 2 of 3
+[2025-10-02 10:05:54] [INFO] [DRY RUN] Would update product: Test Product BK #13 (ID: 63)
+[2025-10-02 10:05:54] [INFO] [DRY RUN] Would update product: Test Product BK #14 (ID: 64)
+[2025-10-02 10:05:54] [INFO] [DRY RUN] Would update product: Test Product BM #1 (ID: 71)
+[2025-10-02 10:05:54] [INFO] [DRY RUN] Would update product: Test Product BM #2 (ID: 72)
+[2025-10-02 10:05:54] [INFO] [DRY RUN] Would update product: Test Product BM #3 (ID: 73)
+[2025-10-02 10:05:54] [INFO] [DRY RUN] Would update product: Test Product BM #4 (ID: 74)
+[2025-10-02 10:05:54] [INFO] [DRY RUN] Would update product: Test Product BM #5 (ID: 75)
+[2025-10-02 10:05:54] [INFO] Processing batch 3 of 3
+[2025-10-02 10:05:54] [INFO] [DRY RUN] Would update product: Test Product BM #6 (ID: 76)
+[2025-10-02 10:05:54] [INFO] [DRY RUN] Would update product: Test Product BM #7 (ID: 77)
+[2025-10-02 10:05:54] [INFO] [DRY RUN] Would update product: Test Product BM #8 (ID: 78)
+[2025-10-02 10:05:54] [INFO] [DRY RUN] Would update product: Test Product BM #10 (ID: 80)
+[2025-10-02 10:05:54] [INFO] Checking for obsolete products...
+[2025-10-02 10:05:54] [INFO] Found 10 obsolete products
+[2025-10-02 10:05:54] [INFO] [DRY RUN] Would delete obsolete product: Test Product BM #15 (SKU: PRODUCT-0015-BM)
+[2025-10-02 10:05:54] [INFO] [DRY RUN] Would delete obsolete product: Test Product BM #11 (SKU: PRODUCT-0011-BM)
+[2025-10-02 10:05:54] [INFO] [DRY RUN] Would delete obsolete product: Test Product BM #12 (SKU: PRODUCT-0012-BM)
+[2025-10-02 10:05:54] [INFO] [DRY RUN] Would delete obsolete product: Test Product BM #13 (SKU: PRODUCT-0013-BM)
+[2025-10-02 10:05:54] [INFO] [DRY RUN] Would delete obsolete product: Test Product BM #14 (SKU: PRODUCT-0014-BM)
+[2025-10-02 10:05:54] [INFO] [DRY RUN] Would delete obsolete product: Test Product BK #18 (SKU: PRODUCT-0018-BK)
+[2025-10-02 10:05:54] [INFO] [DRY RUN] Would delete obsolete product: Test Product BK #20 (SKU: PRODUCT-0020-BK)
+[2025-10-02 10:05:54] [INFO] [DRY RUN] Would delete obsolete product: Test Product BK #19 (SKU: PRODUCT-0019-BK)
+[2025-10-02 10:05:54] [INFO] [DRY RUN] Would delete obsolete product: Test Product BK #17 (SKU: PRODUCT-0017-BK)
+[2025-10-02 10:05:54] [INFO] [DRY RUN] Would delete obsolete product: Test Product BK #16 (SKU: PRODUCT-0016-BK)
+[2025-10-02 10:05:54] [INFO] === FULL SYNC COMPLETED ===
+[2025-10-02 10:05:54] [INFO] Stats: {"products_fetched":25,"products_created":0,"products_updated":21,"products_skipped":4,"products_obsolete":10,"products_deleted":0,"errors":0,"duration":0.24}
+[2025-10-02 10:05:54] [INFO] Duration: 0.24 seconds

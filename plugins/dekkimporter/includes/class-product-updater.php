@@ -238,8 +238,12 @@ class DekkImporter_Product_Updater {
 
         // Update EU Sheet gallery
         if (!empty($item['EuSheeturl'])) {
-            DekkImporter_Product_Helpers::add_eusheet_to_gallery($product_id, $item['EuSheeturl']);
-            $this->plugin->logger->log("Checked and handled EuSheet image for product ID $product_id.");
+            $result = DekkImporter_Product_Helpers::add_eusheet_to_gallery($product_id, $item['EuSheeturl']);
+            if ($result) {
+                $this->plugin->logger->log("EU Sheet processed for product ID $product_id");
+            } else {
+                $this->plugin->logger->log("EU Sheet processing failed for product ID $product_id", 'WARNING');
+            }
         }
 
         // Save product if changes were made

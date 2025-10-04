@@ -1,0 +1,165 @@
+/**
+ * DekkImporter Admin Styles
+ *
+ * @package DekkImporter
+ * @since 1.4.0
+ */
+
+/* Countdown Timer Styles */
+.dekkimporter-countdown {
+    font-weight: bold;
+    font-size: 1.1em;
+    padding: 2px 8px;
+    border-radius: 3px;
+    display: inline-block;
+}
+
+.dekkimporter-countdown.countdown-green {
+    color: #28a745;
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+}
+
+.dekkimporter-countdown.countdown-orange {
+    color: #856404;
+    background-color: #fff3cd;
+    border: 1px solid #ffeeba;
+}
+
+.dekkimporter-countdown.countdown-red {
+    color: #721c24;
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+}
+
+.dekkimporter-countdown.syncing {
+    color: #004085;
+    background-color: #cce5ff;
+    border: 1px solid #b8daff;
+}
+
+/* Dashboard Widget Styles */
+.dekkimporter-dashboard-widget {
+    margin: 0;
+}
+
+.dekkimporter-widget-section {
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+.dekkimporter-widget-section:last-of-type {
+    border-bottom: none;
+}
+
+.dekkimporter-widget-section h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 13px;
+    text-transform: uppercase;
+    color: #666;
+}
+
+.dekkimporter-widget-section p {
+    margin: 5px 0;
+}
+
+.dekkimporter-widget-section table {
+    margin: 10px 0 0 0;
+}
+
+.dekkimporter-widget-section table td {
+    padding: 5px 8px;
+}
+
+.dekkimporter-widget-section table td:first-child {
+    width: 70%;
+}
+
+.dekkimporter-widget-section table td:last-child {
+    text-align: right;
+}
+
+.dekkimporter-widget-actions {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #e5e5e5;
+    display: flex;
+    gap: 8px;
+}
+
+.dekkimporter-widget-actions .button {
+    flex: 1;
+    text-align: center;
+}
+
+/* Manual Sync Button */
+#dekkimporter-manual-sync {
+    margin-top: 5px;
+}
+
+#dekkimporter-manual-sync:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* Settings Page Improvements */
+.dekkimporter-settings-description {
+    font-style: italic;
+    color: #666;
+    margin-top: 5px;
+}
+
+/* Sync Status Indicators */
+.dashicons.dashicons-yes-alt {
+    font-size: 20px;
+    vertical-align: middle;
+    margin-left: 5px;
+}
+
+.dashicons.dashicons-warning {
+    font-size: 20px;
+    vertical-align: middle;
+    margin-left: 5px;
+}
+
+/* Log Viewer Styles */
+.dekkimporter-log-viewer {
+    margin-top: 20px;
+}
+
+.dekkimporter-log-level {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.dekkimporter-log-level.info {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.dekkimporter-log-level.warning {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.dekkimporter-log-level.error {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+/* Responsive Styles */
+@media screen and (max-width: 782px) {
+    .dekkimporter-widget-actions {
+        flex-direction: column;
+    }
+
+    .dekkimporter-countdown {
+        font-size: 1em;
+    }
+}

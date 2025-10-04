@@ -617,9 +617,21 @@ class DekkImporter_Product_Helpers {
      */
     public static function add_eusheet_to_gallery($product_id, $eusheet_url) {
         if (empty($eusheet_url)) {
-            return;
+            error_log("DekkImporter: Empty EuSheeturl for product {$product_id}");
+            return false;
         }
 
+        // EU labels from eprel.ec.europa.eu are web pages, not direct image URLs
+        // For now, we'll store the URL as product meta but not try to download it
+        // TODO: Implement scraping of actual image from EU label page
+        if (strpos($eusheet_url, 'eprel.ec.europa.eu') !== false) {
+            // Store EU label URL as meta for future use
+            update_post_meta($product_id, '_eu_label_url', esc_url_raw($eusheet_url));
+            error_log("DekkImporter: Stored EU label URL for product {$product_id}: {$eusheet_url}");
+            return true;
+        }
+
+        // For direct image URLs (if any), proceed with download
         // Check if we already have this EU sheet cached
         $cached_eusheet_id = get_post_meta($product_id, '_euSheet_image_id', true);
 
@@ -628,7 +640,8 @@ class DekkImporter_Product_Helpers {
             if (get_post($cached_eusheet_id)) {
                 // Set gallery to ONLY this image
                 update_post_meta($product_id, '_product_image_gallery', $cached_eusheet_id);
-                return;
+                error_log("DekkImporter: Using cached EU sheet for product {$product_id}");
+                return true;
             }
         }
 
@@ -639,6 +652,10 @@ class DekkImporter_Product_Helpers {
         if (!$eusheet_id) {
             // Upload new image
             $eusheet_id = self::upload_image($eusheet_url, $filename);
+            if (!$eusheet_id) {
+                error_log("DekkImporter: Failed to upload EU sheet for product {$product_id}: {$eusheet_url}");
+                return false;
+            }
         }
 
         if ($eusheet_id) {
@@ -647,7 +664,11 @@ class DekkImporter_Product_Helpers {
 
             // Set gallery to ONLY the EU sheet image (removes all other images)
             update_post_meta($product_id, '_product_image_gallery', $eusheet_id);
+            error_log("DekkImporter: Successfully set EU sheet gallery for product {$product_id}");
+            return true;
         }
+
+        return false;
     }
 
     /**

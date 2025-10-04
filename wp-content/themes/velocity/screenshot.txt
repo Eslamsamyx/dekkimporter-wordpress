@@ -1,0 +1,17 @@
+VELOCITY THEME SCREENSHOT PLACEHOLDER
+
+To add a proper screenshot:
+1. Create a screenshot.png file (1200x900px recommended)
+2. Take a screenshot of the theme's homepage
+3. Save it as screenshot.png in the theme root directory
+
+For now, WordPress will show a default placeholder.
+
+Recommended screenshot specs:
+- Format: PNG or JPG
+- Size: 1200x900 pixels (4:3 ratio)
+- File name: screenshot.png
+- Location: /wp-content/themes/velocity/screenshot.png
+- Content: Show the homepage design with hero section, services, and footer visible
+
+You can use any image editing software or online tools to create the screenshot.

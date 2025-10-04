@@ -144,8 +144,12 @@ class DekkImporter_Product_Creator {
         // Add EU Sheet to gallery (keeps ONLY EU sheet, removes other images)
         $eusheet_url = $item['EuSheeturl'] ?? '';
         if (!empty($eusheet_url)) {
-            DekkImporter_Product_Helpers::add_eusheet_to_gallery($product_id, $eusheet_url);
-            $this->plugin->logger->log("EU Sheet added to gallery: {$item['ItemId']}");
+            $result = DekkImporter_Product_Helpers::add_eusheet_to_gallery($product_id, $eusheet_url);
+            if ($result) {
+                $this->plugin->logger->log("EU Sheet processed for: {$item['ItemId']}");
+            } else {
+                $this->plugin->logger->log("EU Sheet processing failed for: {$item['ItemId']}", 'WARNING');
+            }
         }
 
         // Create variations for variable products (studdable tires)
