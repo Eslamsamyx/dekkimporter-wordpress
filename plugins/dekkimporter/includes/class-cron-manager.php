@@ -144,7 +144,7 @@ class DekkImporter_Cron_Manager {
 
             // Process actions in batches
             // Note: ActionScheduler processes until time limit or batch limit is reached
-            $runner->run(ActionScheduler_Abstract_QueueRunner::STATUS_RUNNING);
+            $runner->run();
 
             // The runner doesn't return count, so we estimate based on time
             $elapsed = microtime(true) - $start_time;

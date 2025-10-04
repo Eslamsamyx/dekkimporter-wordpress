@@ -527,8 +527,8 @@ class DekkImporter_Product_Helpers {
 
         // Sanitize filename
         $path_info = pathinfo($filename);
-        $name = str_replace('.', '_', $path_info['filename']);
-        $extension = strtolower($path_info['extension']);
+        $name = str_replace('.', '_', $path_info['filename'] ?? 'image');
+        $extension = strtolower($path_info['extension'] ?? 'jpg');
         $sanitized_filename = $name . '.' . $extension;
 
         // PDF to PNG conversion using Imagick
