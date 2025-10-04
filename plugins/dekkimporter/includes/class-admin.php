@@ -10,11 +10,15 @@ if (!defined('ABSPATH')) {
 class DekkImporter_Admin {
     /**
      * Plugin instance
+     *
+     * @var DekkImporter
      */
     private $plugin;
 
     /**
      * Constructor
+     *
+     * @param DekkImporter $plugin Plugin instance
      */
     public function __construct($plugin) {
         $this->plugin = $plugin;
@@ -30,8 +34,10 @@ class DekkImporter_Admin {
 
     /**
      * Add admin menu
+     *
+     * @return void
      */
-    public function add_admin_menu() {
+    public function add_admin_menu(): void {
         add_menu_page(
             'DekkImporter Settings',
             'DekkImporter',
@@ -54,8 +60,10 @@ class DekkImporter_Admin {
 
     /**
      * Register settings
+     *
+     * @return void
      */
-    public function register_settings() {
+    public function register_settings(): void {
         register_setting('dekkimporter_options', 'dekkimporter_options', array(
             'sanitize_callback' => array($this, 'sanitize_options'),
         ));
@@ -198,15 +206,15 @@ class DekkImporter_Admin {
     /**
      * Sanitize options array
      *
-     * @param array $input Input options
-     * @return array Sanitized options
+     * @param mixed $input Input options
+     * @return array<string, mixed> Sanitized options
      */
-    public function sanitize_options($input) {
+    public function sanitize_options($input): array {
         if (!is_array($input)) {
-            return array();
+            return [];
         }
 
-        $sanitized = array();
+        $sanitized = [];
 
         // Sanitize API URLs
         if (isset($input['dekkimporter_bk_api_url'])) {
@@ -238,13 +246,21 @@ class DekkImporter_Admin {
             }
         }
 
-        // Sanitize email fields
-        $email_fields = array(
+        // Sanitize email fields (modern array syntax)
+        $email_fields = [
             'dekkimporter_bk_email',
             'dekkimporter_bm_email',
             'dekkimporter_field_notification_email',
             'sync_notification_email',
-        );
+        ];
+
+        // Field name mapping for better error messages
+        $field_labels = [
+            'dekkimporter_bk_email' => __('BK Supplier Email', 'dekkimporter'),
+            'dekkimporter_bm_email' => __('BM Supplier Email', 'dekkimporter'),
+            'dekkimporter_field_notification_email' => __('CC Notification Email', 'dekkimporter'),
+            'sync_notification_email' => __('Sync Notification Email', 'dekkimporter'),
+        ];
 
         foreach ($email_fields as $field) {
             if (isset($input[$field]) && !empty($input[$field])) {
@@ -252,7 +268,10 @@ class DekkImporter_Admin {
                 if (is_email($email)) {
                     $sanitized[$field] = $email;
                 } else {
-                    add_settings_error('dekkimporter_options', 'invalid_' . $field, ucfirst(str_replace('_', ' ', $field)) . ' is invalid.');
+                    $field_label = $field_labels[$field] ?? ucfirst(str_replace('_', ' ', $field));
+                    add_settings_error('dekkimporter_options', 'invalid_' . $field,
+                        sprintf(__('%s is invalid. Please enter a valid email address.', 'dekkimporter'), $field_label)
+                    );
                 }
             }
         }
@@ -288,11 +307,11 @@ class DekkImporter_Admin {
     /**
      * Sanitize sync interval
      *
-     * @param string $input Sync interval
+     * @param mixed $input Sync interval
      * @return string Sanitized interval
      */
-    public function sanitize_sync_interval($input) {
-        $valid_intervals = array('every15minutes', 'hourly', 'twicedaily', 'daily', 'weekly');
+    public function sanitize_sync_interval($input): string {
+        $valid_intervals = ['every15minutes', 'hourly', 'twicedaily', 'daily', 'weekly'];
 
         if (in_array($input, $valid_intervals, true)) {
             return sanitize_text_field($input);
@@ -305,10 +324,10 @@ class DekkImporter_Admin {
     /**
      * Sanitize log retention days
      *
-     * @param int $input Retention days
+     * @param mixed $input Retention days
      * @return int Sanitized days
      */
-    public function sanitize_log_retention($input) {
+    public function sanitize_log_retention($input): int {
         $days = absint($input);
 
         if ($days >= 1 && $days <= 365) {
@@ -321,8 +340,10 @@ class DekkImporter_Admin {
 
     /**
      * Render API section description
+     *
+     * @return void
      */
-    public function render_api_section() {
+    public function render_api_section(): void {
         ?>
         <div class="dekkimporter-section-header">
             <span class="dashicons dashicons-admin-site-alt3"></span>
@@ -335,8 +356,10 @@ class DekkImporter_Admin {
 
     /**
      * Render Email section description
+     *
+     * @return void
      */
-    public function render_email_section() {
+    public function render_email_section(): void {
         ?>
         <div class="dekkimporter-section-header">
             <span class="dashicons dashicons-email"></span>
@@ -349,8 +372,11 @@ class DekkImporter_Admin {
 
     /**
      * Render text field
+     *
+     * @param array $args Field arguments
+     * @return void
      */
-    public function render_text_field($args) {
+    public function render_text_field(array $args): void {
         $options = get_option('dekkimporter_options', array());
         $value = isset($options[$args['field']]) ? $options[$args['field']] : '';
         $placeholder = isset($args['placeholder']) ? $args['placeholder'] : '';
@@ -362,8 +388,11 @@ class DekkImporter_Admin {
     /**
      * Render markup field (NEW)
      * Amount in ISK to subtract from API prices
+     *
+     * @param array $args Field arguments
+     * @return void
      */
-    public function render_markup_field($args) {
+    public function render_markup_field(array $args): void {
         $options = get_option('dekkimporter_options', array());
         $value = isset($options[$args['field']]) ? $options[$args['field']] : '400';
         ?>
@@ -377,8 +406,11 @@ class DekkImporter_Admin {
 
     /**
      * Render email field
+     *
+     * @param array $args Field arguments
+     * @return void
      */
-    public function render_email_field($args) {
+    public function render_email_field(array $args): void {
         $options = get_option('dekkimporter_options', array());
         $value = isset($options[$args['field']]) ? $options[$args['field']] : '';
         ?>
@@ -388,8 +420,10 @@ class DekkImporter_Admin {
 
     /**
      * Render sync section description
+     *
+     * @return void
      */
-    public function render_sync_section() {
+    public function render_sync_section(): void {
         ?>
         <div class="dekkimporter-section-header">
             <span class="dashicons dashicons-update"></span>
@@ -402,8 +436,10 @@ class DekkImporter_Admin {
 
     /**
      * Render sync interval field
+     *
+     * @return void
      */
-    public function render_sync_interval_field() {
+    public function render_sync_interval_field(): void {
         $interval = get_option('dekkimporter_sync_interval', 'daily');
         $intervals = array(
             'every15minutes' => esc_html__('Every 15 Minutes', 'dekkimporter'),
@@ -426,8 +462,10 @@ class DekkImporter_Admin {
 
     /**
      * Render log retention field
+     *
+     * @return void
      */
-    public function render_log_retention_field() {
+    public function render_log_retention_field(): void {
         $retention_days = get_option('dekkimporter_log_retention_days', 7);
         ?>
         <input type="number" name="dekkimporter_log_retention_days" value="<?php echo esc_attr($retention_days); ?>" min="1" max="365" class="small-text" />
@@ -437,8 +475,10 @@ class DekkImporter_Admin {
 
     /**
      * Render sync notification email field
+     *
+     * @return void
      */
-    public function render_sync_notification_email_field() {
+    public function render_sync_notification_email_field(): void {
         $options = get_option('dekkimporter_options', array());
         $email = isset($options['sync_notification_email']) ? $options['sync_notification_email'] : '';
         ?>
@@ -449,8 +489,10 @@ class DekkImporter_Admin {
 
     /**
      * Settings page
+     *
+     * @return void
      */
-    public function settings_page() {
+    public function settings_page(): void {
         $next_sync = wp_next_scheduled('dekkimporter_sync_products');
         $last_sync_stats = get_option('dekkimporter_last_sync_stats', array());
         $last_sync_time = get_option('dekkimporter_last_sync_time', 0);
@@ -669,8 +711,10 @@ class DekkImporter_Admin {
 
     /**
      * Logs page
+     *
+     * @return void
      */
-    public function logs_page() {
+    public function logs_page(): void {
         if (!class_exists('DekkImporter_Logs_Viewer')) {
             echo '<div class="wrap"><h1>' . esc_html__('DekkImporter Logs', 'dekkimporter') . '</h1>';
             echo '<p>' . esc_html__('Logs viewer not available.', 'dekkimporter') . '</p></div>';
@@ -692,8 +736,11 @@ class DekkImporter_Admin {
 
     /**
      * Enqueue admin assets
+     *
+     * @param string $hook Current admin page hook
+     * @return void
      */
-    public function enqueue_admin_assets($hook) {
+    public function enqueue_admin_assets(string $hook): void {
         if ($hook !== 'toplevel_page_dekkimporter' && $hook !== 'index.php') {
             return;
         }
@@ -753,8 +800,10 @@ class DekkImporter_Admin {
 
     /**
      * Handle manual sync AJAX request
+     *
+     * @return void
      */
-    public function handle_manual_sync() {
+    public function handle_manual_sync(): void {
         check_ajax_referer('dekkimporter_manual_sync', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -828,8 +877,10 @@ class DekkImporter_Admin {
 
     /**
      * Handle sync progress AJAX request
+     *
+     * @return void
      */
-    public function handle_sync_progress() {
+    public function handle_sync_progress(): void {
         if (!current_user_can('manage_options')) {
             wp_send_json_error(array('message' => 'Unauthorized'));
             return;
@@ -853,8 +904,10 @@ class DekkImporter_Admin {
 
     /**
      * Handle stop sync AJAX request
+     *
+     * @return void
      */
-    public function handle_stop_sync() {
+    public function handle_stop_sync(): void {
         check_ajax_referer('dekkimporter_stop_sync', 'nonce');
 
         if (!current_user_can('manage_options')) {
@@ -880,16 +933,37 @@ class DekkImporter_Admin {
 
     /**
      * Run the actual sync process (connection already closed to client)
+     *
+     * @return void
      */
-    private function run_sync_process() {
+    private function run_sync_process(): void {
+        // Re-verify capabilities for security
+        if (!current_user_can('manage_options')) {
+            $this->plugin->logger->log('Unauthorized sync attempt in background process', 'ERROR');
+            return;
+        }
+
         $this->plugin->logger->log('=== SYNC PROCESS EXECUTING (CONNECTION CLOSED) ===');
 
-        $options = get_option('dekkimporter_options', array());
-        $sync_options = array(
+        $options = get_option('dekkimporter_options', []);
+
+        // Validate options is an array
+        if (!is_array($options)) {
+            $this->plugin->logger->log('Invalid options format, using defaults', 'WARNING');
+            $options = [];
+        }
+
+        $sync_options = [
             'handle_obsolete' => isset($options['handle_obsolete']) ? (bool) $options['handle_obsolete'] : true,
-            'batch_size'      => isset($options['sync_batch_size']) ? (int) $options['sync_batch_size'] : 50,
+            'batch_size'      => isset($options['sync_batch_size']) ? absint($options['sync_batch_size']) : 50,
             'dry_run'         => false,
-        );
+        ];
+
+        // Validate batch_size range
+        if ($sync_options['batch_size'] < 1 || $sync_options['batch_size'] > 1000) {
+            $sync_options['batch_size'] = 50;
+            $this->plugin->logger->log('Batch size out of range, using default: 50', 'WARNING');
+        }
 
         $stats = $this->plugin->sync_manager->full_sync($sync_options);
 
@@ -902,8 +976,12 @@ class DekkImporter_Admin {
 
     /**
      * Reschedule cron when interval changes
+     *
+     * @param mixed $old_value Old interval value
+     * @param mixed $new_value New interval value
+     * @return void
      */
-    public function reschedule_cron($old_value, $new_value) {
+    public function reschedule_cron($old_value, $new_value): void {
         if ($old_value !== $new_value) {
             $this->plugin->cron->activate();
         }
@@ -911,8 +989,10 @@ class DekkImporter_Admin {
 
     /**
      * Render auto-process cron field (checkbox)
+     *
+     * @return void
      */
-    public function render_auto_process_cron_field() {
+    public function render_auto_process_cron_field(): void {
         $options = get_option('dekkimporter_options', array());
         $enabled = isset($options['dekkimporter_field_auto_process_cron']) ? (bool)$options['dekkimporter_field_auto_process_cron'] : true;
         ?>
@@ -928,8 +1008,10 @@ class DekkImporter_Admin {
 
     /**
      * Render cron batch size field (number input)
+     *
+     * @return void
      */
-    public function render_cron_batch_size_field() {
+    public function render_cron_batch_size_field(): void {
         $options = get_option('dekkimporter_options', array());
         $batch_size = isset($options['dekkimporter_field_cron_batch_size']) ? (int)$options['dekkimporter_field_cron_batch_size'] : 25;
         ?>
@@ -942,8 +1024,10 @@ class DekkImporter_Admin {
 
     /**
      * Render cron interval field (number input)
+     *
+     * @return void
      */
-    public function render_cron_interval_field() {
+    public function render_cron_interval_field(): void {
         $options = get_option('dekkimporter_options', array());
         $interval = isset($options['dekkimporter_field_cron_interval']) ? (int)$options['dekkimporter_field_cron_interval'] : 15;
         ?>

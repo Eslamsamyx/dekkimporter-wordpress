@@ -61,6 +61,8 @@ class DekkImporter_Product_Helpers {
         }
 
         // Detect brand and trim from name for subtype extraction
+        // Note: $name variable is progressively trimmed throughout this function
+        // Each regex match removes matched portion to leave only subtype at the end
         if (isset($item['INVENTLOCATIONID']) && $item['INVENTLOCATIONID'] === 'Mitra' && isset($item['producer'])) {
             // BM Producer mapping (from dekkimporter-7)
             $producer_map = [
@@ -78,15 +80,16 @@ class DekkImporter_Product_Helpers {
             if (preg_match('/^\s*([A-Za-z]+)\b/', $name, $matches)) {
                 $brand = $matches[1];
                 $add_attribute('dekkjaframleidandi', $brand);
-                $name = str_replace($matches[0], '', $name);  // Remove brand from name
+                $name = str_replace($matches[0], '', $name);  // Remove brand, keep rest for processing
             }
         }
 
         // Detect studding status and trim from name
+        // Progressive trimming: Remove studding marker to isolate remaining attributes
         if (preg_match('/(NEGLT|ón|\sneglanl)/iu', $name, $matches)) {
             $studded = ltrim($matches[0]);
             $pos = mb_strpos($name, $studded);
-            $name = mb_substr($name, 0, $pos);  // Trim studding from name
+            $name = mb_substr($name, 0, $pos);  // Trim studding marker and everything after
 
             switch (mb_strtolower($studded)) {
                 case 'neglt':
@@ -104,13 +107,14 @@ class DekkImporter_Product_Helpers {
         }
 
         // Detect tire type (BM uses group title, BK uses regex)
+        // Progressive trimming: Remove type markers to leave subtype
         if (isset($item['INVENTLOCATIONID']) && $item['INVENTLOCATIONID'] === 'Mitra') {
             $add_attribute('gerd', $item['type']);
         } else {
             $type_regex = '/(vetr|jeppa|sumar|heil|vinnuvél|vagn|fram|aftur|drifd|burðar)/ui';
             if (preg_match_all($type_regex, $name, $matches)) {
                 $pos = mb_strpos($name, $matches[0][0]);
-                $name = mb_substr($name, 0, $pos);  // Trim type from name
+                $name = mb_substr($name, 0, $pos);  // Trim type markers and everything after
 
                 foreach ($matches[0] as $match) {
                     switch (mb_strtolower($match)) {
@@ -150,9 +154,10 @@ class DekkImporter_Product_Helpers {
         }
 
         // Detect speed rating and load capacity, trim from name
+        // Progressive trimming: Remove speed/load ratings to isolate subtype
         if (preg_match('/\s(\d{2,3}(?:\/\d{2,3})?)([H|L|S|T|Y|Q|R|V|W])/', $name, $matches)) {
             $pos = mb_strpos($name, $matches[0]);
-            $name = mb_substr($name, 0, $pos);  // Trim speed/load from name
+            $name = mb_substr($name, 0, $pos);  // Trim speed/load ratings and everything after
 
             // BM combines load+speed, BK separates them
             if (isset($item['INVENTLOCATIONID']) && $item['INVENTLOCATIONID'] === 'Mitra') {
@@ -169,10 +174,12 @@ class DekkImporter_Product_Helpers {
             $name = mb_substr($name, 0, $extra);
         }
 
-        // Extract subtype from remaining name (progressive trimming approach)
+        // Extract subtype from remaining name
+        // After all progressive trimming above, $name now contains only the subtype
+        // Examples: "Winspike 3", "Ice-Plus S220", "Green 4S"
         $name = trim($name);
         if ($name !== '') {
-            // For BM products, remove first word
+            // For BM products, remove first word (usually dimension prefix)
             if (isset($item['INVENTLOCATIONID']) && $item['INVENTLOCATIONID'] === 'Mitra') {
                 $name = trim($name);
                 $pos = mb_strpos($name, ' ');
@@ -181,6 +188,7 @@ class DekkImporter_Product_Helpers {
                 }
             }
 
+            // Final trimmed $name is the product subtype/model
             $add_attribute('undirtegund', $name);
         }
 
@@ -650,6 +658,18 @@ class DekkImporter_Product_Helpers {
      */
     public static function get_attachment_id_by_filename($filename) {
         global $wpdb;
+
+        // Validate global $wpdb exists
+        if (!isset($wpdb) || !is_object($wpdb)) {
+            error_log('DekkImporter: $wpdb global not available in get_attachment_id_by_filename');
+            return false;
+        }
+
+        // Validate filename parameter
+        if (empty($filename) || !is_string($filename)) {
+            error_log('DekkImporter: Invalid filename parameter in get_attachment_id_by_filename');
+            return false;
+        }
 
         // Remove extension for post_name search
         $post_name = pathinfo($filename, PATHINFO_FILENAME);

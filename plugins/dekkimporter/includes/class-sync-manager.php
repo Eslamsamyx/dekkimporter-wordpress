@@ -11,6 +11,8 @@ if (!defined('ABSPATH')) {
 class DekkImporter_Sync_Manager {
     /**
      * Plugin instance
+     *
+     * @var DekkImporter
      */
     private $plugin;
 
@@ -37,6 +39,8 @@ class DekkImporter_Sync_Manager {
 
     /**
      * Constructor
+     *
+     * @param DekkImporter $plugin Plugin instance
      */
     public function __construct($plugin) {
         $this->plugin = $plugin;
@@ -46,9 +50,9 @@ class DekkImporter_Sync_Manager {
      * Perform full sync
      *
      * @param array $options Sync options
-     * @return array Sync results
+     * @return array<string, mixed> Sync results
      */
-    public function full_sync($options = []) {
+    public function full_sync(array $options = []): array {
         $start_time = microtime(true);
 
         $defaults = [
@@ -59,27 +63,45 @@ class DekkImporter_Sync_Manager {
 
         $options = array_merge($defaults, $options);
 
-        // BUG FIX #5: Prevent concurrent syncs using transient lock
+        // Prevent concurrent syncs using atomic lock mechanism
         $lock_key = 'dekkimporter_sync_lock';
         $lock_timeout = 3600; // 1 hour max
+        $current_time = time();
 
-        if (get_transient($lock_key)) {
-            $this->plugin->logger->log('Another sync is already running. Aborting.', 'WARNING');
-            return [
-                'products_fetched' => 0,
-                'products_created' => 0,
-                'products_updated' => 0,
-                'products_skipped' => 0,
-                'products_obsolete' => 0,
-                'products_deleted' => 0,
-                'errors' => 0,
-                'message' => 'Another sync is already running',
-                'status' => 'aborted',
-            ];
+        // Check for stale locks (older than 1 hour)
+        $existing_lock = get_transient($lock_key);
+        if ($existing_lock !== false) {
+            $lock_age = $current_time - (int)$existing_lock;
+            if ($lock_age > $lock_timeout) {
+                // Stale lock detected, clean it up
+                $this->plugin->logger->log('Stale sync lock detected (age: ' . $lock_age . 's), cleaning up', 'WARNING');
+                delete_transient($lock_key);
+            } else {
+                // Active lock, abort
+                $this->plugin->logger->log('Another sync is already running. Aborting.', 'WARNING');
+                return [
+                    'products_fetched' => 0,
+                    'products_created' => 0,
+                    'products_updated' => 0,
+                    'products_skipped' => 0,
+                    'products_obsolete' => 0,
+                    'products_deleted' => 0,
+                    'errors' => 0,
+                    'message' => 'Another sync is already running',
+                    'status' => 'aborted',
+                ];
+            }
         }
 
-        // Set lock
-        set_transient($lock_key, time(), $lock_timeout);
+        // Set atomic lock with current timestamp
+        set_transient($lock_key, $current_time, $lock_timeout);
+
+        // Register shutdown function to ensure lock is released
+        register_shutdown_function(function() use ($lock_key) {
+            if (get_transient($lock_key)) {
+                delete_transient($lock_key);
+            }
+        });
 
         $this->plugin->logger->log('=== FULL SYNC STARTED ===');
         $this->plugin->logger->log('Options: ' . json_encode($options));
@@ -275,9 +297,9 @@ class DekkImporter_Sync_Manager {
      *
      * @param array $api_product Product data from API
      * @param bool $dry_run If true, don't make changes
-     * @return array Result with action taken
+     * @return array<string, mixed> Result with action taken
      */
-    private function sync_product($api_product, $dry_run = false) {
+    private function sync_product(array $api_product, bool $dry_run = false): array {
         $sku = $api_product['sku'];
 
         // Check if product exists
@@ -297,9 +319,9 @@ class DekkImporter_Sync_Manager {
      *
      * @param array $api_product Product data
      * @param bool $dry_run If true, don't create
-     * @return array Result
+     * @return array<string, mixed> Result
      */
-    private function create_new_product($api_product, $dry_run = false) {
+    private function create_new_product(array $api_product, bool $dry_run = false): array {
         if ($dry_run) {
             $this->plugin->logger->log("[DRY RUN] Would create product: {$api_product['name']} ({$api_product['sku']})");
             return ['action' => 'created', 'dry_run' => true];
@@ -331,9 +353,9 @@ class DekkImporter_Sync_Manager {
      * @param int $product_id Product ID
      * @param array $api_product Product data from API
      * @param bool $dry_run If true, don't update
-     * @return array Result
+     * @return array<string, mixed> Result
      */
-    private function update_existing_product($product_id, $api_product, $dry_run = false) {
+    private function update_existing_product(int $product_id, array $api_product, bool $dry_run = false): array {
         // Check if update is needed
         $last_sync = get_post_meta($product_id, self::META_LAST_SYNC, true);
         $api_last_modified = isset($api_product['last_modified']) ? $api_product['last_modified'] : '';
@@ -384,9 +406,9 @@ class DekkImporter_Sync_Manager {
      *
      * @param array $api_products Current products from API
      * @param bool $dry_run If true, don't deactivate
-     * @return array Results
+     * @return array{found: int, deactivated: int} Results
      */
-    private function handle_obsolete_products($api_products, $dry_run = false) {
+    private function handle_obsolete_products(array $api_products, bool $dry_run = false): array {
         $this->plugin->logger->log('Checking for obsolete products (v7 parity mode)...');
 
         // Get all active API SKUs
@@ -492,10 +514,10 @@ class DekkImporter_Sync_Manager {
      * Get stale products
      * Products that haven't been synced in X days
      *
-     * @param int $days Number of days
-     * @return array Stale products
+     * @param int|null $days Number of days
+     * @return array<int, WP_Post> Stale products
      */
-    public function get_stale_products($days = null) {
+    public function get_stale_products(?int $days = null): array {
         if ($days === null) {
             $days = self::STALENESS_THRESHOLD;
         }
@@ -530,8 +552,9 @@ class DekkImporter_Sync_Manager {
      * @param string $status Status (running, completed, failed)
      * @param string $message Status message
      * @param array $stats Optional stats
+     * @return void
      */
-    private function update_sync_status($status, $message, $stats = []) {
+    private function update_sync_status(string $status, string $message, array $stats = []): void {
         $status_data = [
             'status' => $status,
             'message' => $message,
@@ -546,8 +569,9 @@ class DekkImporter_Sync_Manager {
      * Save sync stats
      *
      * @param array $stats Sync statistics
+     * @return void
      */
-    private function save_sync_stats($stats) {
+    private function save_sync_stats(array $stats): void {
         $all_stats = get_option(self::OPTION_SYNC_STATS, []);
 
         $all_stats[] = array_merge($stats, [
@@ -565,9 +589,9 @@ class DekkImporter_Sync_Manager {
     /**
      * Get sync status
      *
-     * @return array Current sync status
+     * @return array<string, mixed> Current sync status
      */
-    public function get_sync_status() {
+    public function get_sync_status(): array {
         return get_option(self::OPTION_SYNC_STATUS, [
             'status' => 'idle',
             'message' => 'No sync has been run',
@@ -579,9 +603,9 @@ class DekkImporter_Sync_Manager {
      * Get sync stats history
      *
      * @param int $limit Number of records to return
-     * @return array Sync stats
+     * @return array<int, array> Sync stats
      */
-    public function get_sync_stats($limit = 10) {
+    public function get_sync_stats(int $limit = 10): array {
         $stats = get_option(self::OPTION_SYNC_STATS, []);
         return array_slice($stats, -$limit);
     }
@@ -590,10 +614,10 @@ class DekkImporter_Sync_Manager {
      * Send new product notification email
      * 100% PARITY with dekkimporter-7.php (lines 1676-1694)
      *
-     * @param array $links Array of product permalinks
+     * @param array<int, string> $links Array of product permalinks
      * @return bool Success status
      */
-    private function send_new_product_notification($links) {
+    private function send_new_product_notification(array $links): bool {
         $options = get_option('dekkimporter_options', []);
         $notification_email = isset($options['dekkimporter_field_notification_email']) ? sanitize_email($options['dekkimporter_field_notification_email']) : '';
 

@@ -133,7 +133,8 @@
             const $el = $(this);
             const nextSync = parseInt($el.data('timestamp'), 10);
 
-            if (!nextSync) {
+            // Explicit NaN check for invalid timestamps
+            if (!nextSync || isNaN(nextSync)) {
                 $el.html('<span class="dekkimporter-countdown">No sync scheduled</span>');
                 return;
             }
@@ -278,9 +279,9 @@
 
             console.log(`Stats: ${processed}/${total} - Created: ${created}, Updated: ${updated}, Skipped: ${skipped}`);
 
-            // Update time remaining
-            const estimatedTime = parseInt(progress.estimated_time);
-            if (estimatedTime && estimatedTime > 0) {
+            // Update time remaining with explicit NaN check
+            const estimatedTime = parseInt(progress.estimated_time, 10);
+            if (!isNaN(estimatedTime) && estimatedTime > 0) {
                 const minutes = Math.floor(estimatedTime / 60);
                 const seconds = estimatedTime % 60;
                 if (minutes > 0) {

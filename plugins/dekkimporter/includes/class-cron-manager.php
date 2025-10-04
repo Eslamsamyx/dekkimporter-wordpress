@@ -14,6 +14,8 @@ if (!defined('ABSPATH')) {
 class DekkImporter_Cron_Manager {
     /**
      * Plugin instance
+     *
+     * @var DekkImporter
      */
     private $plugin;
 
@@ -30,7 +32,7 @@ class DekkImporter_Cron_Manager {
     /**
      * Constructor
      *
-     * @param object $plugin Plugin instance
+     * @param DekkImporter $plugin Plugin instance
      */
     public function __construct($plugin) {
         $this->plugin = $plugin;
@@ -38,8 +40,10 @@ class DekkImporter_Cron_Manager {
 
     /**
      * Initialize hooks
+     *
+     * @return void
      */
-    public function init() {
+    public function init(): void {
         // Hook into sync completion
         add_action('dekkimporter_sync_completed', [$this, 'process_after_sync'], 10, 1);
     }
@@ -49,8 +53,9 @@ class DekkImporter_Cron_Manager {
      * Main entry point - called automatically after each sync
      *
      * @param array $sync_result Results from sync operation
+     * @return void
      */
-    public function process_after_sync($sync_result = []) {
+    public function process_after_sync(array $sync_result = []): void {
         // Check if auto-processing is enabled
         $options = get_option('dekkimporter_options', []);
         $auto_process = isset($options['dekkimporter_field_auto_process_cron'])
@@ -115,7 +120,7 @@ class DekkImporter_Cron_Manager {
      *
      * @return int Number of tasks processed
      */
-    private function run_action_scheduler() {
+    private function run_action_scheduler(): int {
         // Check if Action Scheduler is available
         if (!class_exists('ActionScheduler') || !class_exists('ActionScheduler_QueueRunner')) {
             $this->plugin->logger->log("Action Scheduler not available. Skipping.");
@@ -158,7 +163,7 @@ class DekkImporter_Cron_Manager {
      *
      * @return bool True if cron should run
      */
-    private function should_run_wordpress_cron() {
+    private function should_run_wordpress_cron(): bool {
         $options = get_option('dekkimporter_options', []);
         $threshold_minutes = isset($options['dekkimporter_field_cron_interval'])
             ? (int)$options['dekkimporter_field_cron_interval']
@@ -180,8 +185,10 @@ class DekkImporter_Cron_Manager {
     /**
      * Trigger WordPress cron execution
      * Uses spawn_cron() for non-blocking execution
+     *
+     * @return void
      */
-    private function run_wordpress_cron() {
+    private function run_wordpress_cron(): void {
         try {
             // Use WordPress spawn_cron() for non-blocking execution
             spawn_cron();
@@ -195,9 +202,9 @@ class DekkImporter_Cron_Manager {
     /**
      * Get Action Scheduler queue statistics
      *
-     * @return array Statistics array with counts
+     * @return array{pending: int, past_due: int, running: int, complete: int, failed: int} Statistics array with counts
      */
-    public function get_action_scheduler_stats() {
+    public function get_action_scheduler_stats(): array {
         global $wpdb;
 
         $stats = [
@@ -215,13 +222,18 @@ class DekkImporter_Cron_Manager {
         try {
             $table = $wpdb->prefix . 'actionscheduler_actions';
 
-            // Check if table exists
-            $table_exists = $wpdb->get_var("SHOW TABLES LIKE '{$table}'") === $table;
+            // Check if table exists using prepared statement with LIKE
+            $like_pattern = $wpdb->esc_like($table);
+            $table_exists = $wpdb->get_var($wpdb->prepare(
+                "SHOW TABLES LIKE %s",
+                $like_pattern
+            )) === $table;
+
             if (!$table_exists) {
                 return $stats;
             }
 
-            // Get pending count
+            // Get pending count - table name is safe (constructed from prefix)
             $stats['pending'] = (int)$wpdb->get_var(
                 "SELECT COUNT(*) FROM {$table} WHERE status = 'pending'"
             );
@@ -265,7 +277,7 @@ class DekkImporter_Cron_Manager {
      * @param int $days Days to keep (default: 30)
      * @return int Number of actions deleted
      */
-    public function cleanup_old_actions($days = 30) {
+    public function cleanup_old_actions(int $days = 30): int {
         global $wpdb;
 
         if (!class_exists('ActionScheduler')) {
@@ -298,9 +310,9 @@ class DekkImporter_Cron_Manager {
      * Manual trigger for admin use
      * Can be called from admin interface or WP-CLI
      *
-     * @return array Processing results
+     * @return array{success: bool, before: array, after: array, reduced: int} Processing results
      */
-    public function manual_process() {
+    public function manual_process(): array {
         $this->plugin->logger->log("=== Manual Background Task Processing Triggered ===");
 
         $stats_before = $this->get_action_scheduler_stats();

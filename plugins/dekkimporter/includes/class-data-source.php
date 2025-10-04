@@ -12,21 +12,29 @@ if (!defined('ABSPATH')) {
 class DekkImporter_Data_Source {
     /**
      * Plugin instance
+     *
+     * @var DekkImporter
      */
     private $plugin;
 
     /**
      * API endpoints
+     *
+     * @var array<string, string>
      */
     private $api_endpoints = [];
 
     /**
      * BK Image database cache
+     *
+     * @var array<string, string>
      */
     private $bk_image_db = [];
 
     /**
      * Constructor
+     *
+     * @param DekkImporter $plugin Plugin instance
      */
     public function __construct($plugin) {
         $this->plugin = $plugin;
@@ -34,18 +42,18 @@ class DekkImporter_Data_Source {
         // Load API configuration
         $options = get_option('dekkimporter_options', []);
         $this->api_endpoints = [
-            'BK' => isset($options['dekkimporter_bk_api_url']) ? $options['dekkimporter_bk_api_url'] : '',
+            'BK' => $options['dekkimporter_bk_api_url'] ?? '',
             'BK_IMAGES' => 'https://bud.klettur.is/wp-content/themes/bud.klettur.is/json/myndir.php',
-            'BM' => isset($options['dekkimporter_bm_api_url']) ? $options['dekkimporter_bm_api_url'] : '',
+            'BM' => $options['dekkimporter_bm_api_url'] ?? '',
         ];
     }
 
     /**
      * Fetch products from all data sources
      *
-     * @return array Combined products from all suppliers
+     * @return array<int, array> Combined products from all suppliers
      */
-    public function fetch_products() {
+    public function fetch_products(): array {
         $this->plugin->logger->log('Fetching products from all data sources');
 
         $all_products = [];
@@ -69,8 +77,10 @@ class DekkImporter_Data_Source {
 
     /**
      * Fetch BK image database
+     *
+     * @return void
      */
-    private function fetch_bk_image_database() {
+    private function fetch_bk_image_database(): void {
         if (!empty($this->bk_image_db)) {
             return; // Already cached
         }
@@ -90,21 +100,33 @@ class DekkImporter_Data_Source {
         $body = wp_remote_retrieve_body($response);
         $data = json_decode($body, true);
 
-        if (isset($data['myndir']) && is_array($data['myndir'])) {
-            // Create lookup by ItemId
-            foreach ($data['myndir'] as $item) {
-                if (isset($item['id']) && isset($item['photourl'])) {
-                    $this->bk_image_db[$item['id']] = $item['photourl'];
-                }
-            }
-            $this->plugin->logger->log("Loaded " . count($this->bk_image_db) . " BK product images");
+        // Validate data structure before accessing
+        if (!is_array($data) || !isset($data['myndir'])) {
+            $this->plugin->logger->log("Invalid BK image database structure", 'WARNING');
+            return;
         }
+
+        if (!is_array($data['myndir'])) {
+            $this->plugin->logger->log("BK image database 'myndir' is not an array", 'WARNING');
+            return;
+        }
+
+        // Create lookup by ItemId
+        foreach ($data['myndir'] as $item) {
+            if (isset($item['id']) && isset($item['photourl'])) {
+                $this->bk_image_db[$item['id']] = $item['photourl'];
+            }
+        }
+        $this->plugin->logger->log("Loaded " . count($this->bk_image_db) . " BK product images");
     }
 
     /**
      * Fetch products from BK supplier (Klettur)
+     *
+     * @param string $api_url API endpoint URL
+     * @return array<int, array> Array of normalized products
      */
-    private function fetch_from_bk($api_url) {
+    private function fetch_from_bk(string $api_url): array {
         $this->plugin->logger->log("Fetching products from BK supplier: {$api_url}");
 
         // First fetch image database
@@ -142,7 +164,13 @@ class DekkImporter_Data_Source {
         // Aggregate products by ItemId (sum quantities from same location)
         $aggregated = [];
         foreach ($data as $product) {
+            // Validate required fields before accessing
             if (!isset($product['INVENTLOCATIONID']) || $product['INVENTLOCATIONID'] !== 'HJ-S') {
+                continue;
+            }
+
+            if (!isset($product['ItemId'])) {
+                $this->plugin->logger->log("BK product missing ItemId, skipping", 'WARNING');
                 continue;
             }
 
@@ -153,11 +181,15 @@ class DekkImporter_Data_Source {
                 if (isset($this->bk_image_db[$item_id])) {
                     $aggregated[$item_id]['photourl'] = $this->bk_image_db[$item_id];
                 }
-                // Apply 24% VAT
-                $aggregated[$item_id]['Price'] *= 1.24;
+                // Apply 24% VAT to price if it exists
+                if (isset($aggregated[$item_id]['Price'])) {
+                    $aggregated[$item_id]['Price'] *= 1.24;
+                }
             } else {
-                // Add quantities
-                $aggregated[$item_id]['QTY'] += $product['QTY'];
+                // Add quantities if both exist
+                if (isset($product['QTY']) && isset($aggregated[$item_id]['QTY'])) {
+                    $aggregated[$item_id]['QTY'] += $product['QTY'];
+                }
             }
         }
 
@@ -183,8 +215,11 @@ class DekkImporter_Data_Source {
 
     /**
      * Fetch products from BM supplier (Mitra) - includes 4 API endpoints
+     *
+     * @param string $api_url API endpoint URL
+     * @return array<int, array> Array of normalized products
      */
-    private function fetch_from_bm($api_url) {
+    private function fetch_from_bm(string $api_url): array {
         $this->plugin->logger->log("Fetching products from BM supplier: {$api_url}");
 
         // Mitra has 4 endpoints
@@ -242,8 +277,11 @@ class DekkImporter_Data_Source {
     /**
      * Normalize BK product data
      * Maps ALL fields needed for attribute extraction and product creation
+     *
+     * @param array $product Raw product data from BK API
+     * @return array|null Normalized product data or null if invalid
      */
-    private function normalize_bk_product($product) {
+    private function normalize_bk_product(array $product): ?array {
         if (empty($product['ItemId']) || empty($product['ItemName'])) {
             return null;
         }
@@ -260,12 +298,12 @@ class DekkImporter_Data_Source {
             'QTY' => isset($product['QTY']) ? intval($product['QTY']) : 0,
             'INVENTLOCATIONID' => 'HJ-S',
 
-            // Dimension fields
-            'Width' => isset($product['Width']) ? $product['Width'] : '',
-            'Height' => isset($product['Height']) ? $product['Height'] : '',
+            // Dimension fields (null coalescing for consistency)
+            'Width' => $product['Width'] ?? '',
+            'Height' => $product['Height'] ?? '',
             'RimSize' => isset($product['RimSize']) ? intval($product['RimSize']) : 0,
 
-            // Image fields
+            // Image fields (null coalescing for consistency)
             'photourl' => isset($product['photourl']) ? esc_url_raw($product['photourl']) : '',
             'galleryPhotourl' => isset($product['galleryPhotourl']) ? esc_url_raw($product['galleryPhotourl']) : '',
 
@@ -285,15 +323,18 @@ class DekkImporter_Data_Source {
     /**
      * Normalize BM product data
      * Maps ALL fields needed for attribute extraction and product creation
+     *
+     * @param array $product Raw product data from BM API
+     * @return array|null Normalized product data or null if invalid
      */
-    private function normalize_bm_product($product) {
+    private function normalize_bm_product(array $product): ?array {
         if (empty($product['product_number']) || empty($product['title'])) {
             return null;
         }
 
         // Special handling for VN0000375
         $title = $product['title'];
-        $diameter = isset($product['diameter']) ? $product['diameter'] : '';
+        $diameter = $product['diameter'] ?? '';
 
         if ($product['product_number'] === 'VN0000375') {
             if (strlen($title) >= 8) {
@@ -331,9 +372,9 @@ class DekkImporter_Data_Source {
             'QTY' => isset($product['inventory']) ? intval($product['inventory']) : 0,
             'INVENTLOCATIONID' => 'Mitra',
 
-            // Dimension fields
-            'Width' => isset($product['width']) ? $product['width'] : '',
-            'Height' => isset($product['aspect_ratio']) ? $product['aspect_ratio'] : '',
+            // Dimension fields (null coalescing for consistency)
+            'Width' => $product['width'] ?? '',
+            'Height' => $product['aspect_ratio'] ?? '',
             'RimSize' => !empty($diameter) ? intval($diameter) : 0,
 
             // Image fields
@@ -343,11 +384,11 @@ class DekkImporter_Data_Source {
             // EU Label
             'EuSheeturl' => $eu_label,
 
-            // Type from group
-            'type' => isset($product['group']['title']) ? $product['group']['title'] : '',
+            // Type from group (null coalescing for consistency)
+            'type' => $product['group']['title'] ?? '',
 
-            // Producer ID for brand mapping
-            'producer' => isset($product['producer']) ? $product['producer'] : null,
+            // Producer ID for brand mapping (null coalescing for consistency)
+            'producer' => $product['producer'] ?? null,
 
             // Tracking fields (required by sync manager)
             'api_id' => sanitize_text_field($product['product_number']),
@@ -363,9 +404,9 @@ class DekkImporter_Data_Source {
      * Get list of active product SKUs from API
      * Used to identify obsolete products
      *
-     * @return array Array of active SKUs
+     * @return array<int, string> Array of active SKUs
      */
-    public function get_active_skus() {
+    public function get_active_skus(): array {
         $products = $this->fetch_products();
         $skus = [];
 

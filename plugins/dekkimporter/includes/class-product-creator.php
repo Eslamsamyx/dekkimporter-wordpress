@@ -12,11 +12,15 @@ if (!defined('ABSPATH')) {
 class DekkImporter_Product_Creator {
     /**
      * Plugin instance
+     *
+     * @var DekkImporter
      */
     private $plugin;
 
     /**
      * Constructor
+     *
+     * @param DekkImporter $plugin Plugin instance
      */
     public function __construct($plugin) {
         $this->plugin = $plugin;
@@ -28,13 +32,13 @@ class DekkImporter_Product_Creator {
      * @param array $item Product data from API (normalized format)
      * @return int|false Product ID on success, false on failure
      */
-    public function create_product($item) {
-        // Get markup setting
+    public function create_product(array $item) {
+        // Get markup setting (null coalescing for consistency)
         $options = get_option('dekkimporter_options', []);
-        $markup = isset($options['dekkimporter_field_markup']) ? (int)$options['dekkimporter_field_markup'] : 400;
+        $markup = (int)($options['dekkimporter_field_markup'] ?? 400);
 
         // Calculate target price (subtract markup) - BUG FIX #3: Prevent negative prices
-        $api_price = isset($item['Price']) ? floatval($item['Price']) : 0;
+        $api_price = floatval($item['Price'] ?? 0);
         $target_price = max(0, $api_price - $markup);
 
         if ($target_price === 0) {
@@ -78,9 +82,10 @@ class DekkImporter_Product_Creator {
         $product->set_stock_quantity($new_stock);
         $product->set_stock_status($new_stock > 0 ? 'instock' : 'outofstock');
 
-        // Upload and set images
-        if (isset($item['photourl']) && !empty($item['photourl'])) {
-            $image_id = DekkImporter_Product_Helpers::upload_image($item['photourl']);
+        // Upload and set images (null coalescing for consistency)
+        $photourl = $item['photourl'] ?? '';
+        if (!empty($photourl)) {
+            $image_id = DekkImporter_Product_Helpers::upload_image($photourl);
             if ($image_id !== null) {
                 $product->set_image_id($image_id);
                 $this->plugin->logger->log("Main image uploaded: {$item['ItemId']}");
@@ -112,8 +117,8 @@ class DekkImporter_Product_Creator {
             }
         }
 
-        // Set product description with EU label
-        $eu_label_url = isset($item['EuSheeturl']) ? $item['EuSheeturl'] : '';
+        // Set product description with EU label (null coalescing for consistency)
+        $eu_label_url = $item['EuSheeturl'] ?? '';
         $description = DekkImporter_Product_Helpers::product_desc($tire_type, $eu_label_url);
         $product->set_description($description);
 
@@ -137,8 +142,9 @@ class DekkImporter_Product_Creator {
         }
 
         // Add EU Sheet to gallery (keeps ONLY EU sheet, removes other images)
-        if (isset($item['EuSheeturl']) && !empty($item['EuSheeturl'])) {
-            DekkImporter_Product_Helpers::add_eusheet_to_gallery($product_id, $item['EuSheeturl']);
+        $eusheet_url = $item['EuSheeturl'] ?? '';
+        if (!empty($eusheet_url)) {
+            DekkImporter_Product_Helpers::add_eusheet_to_gallery($product_id, $eusheet_url);
             $this->plugin->logger->log("EU Sheet added to gallery: {$item['ItemId']}");
         }
 
@@ -158,8 +164,9 @@ class DekkImporter_Product_Creator {
      * @param int $parent_id Parent product ID
      * @param array $item Product data
      * @param float $base_price Base price (before stud markup)
+     * @return void
      */
-    private function create_variations($parent_id, $item, $base_price) {
+    private function create_variations(int $parent_id, array $item, float $base_price): void {
         $sku = $item['sku'];
 
         // Variation 1: Without studs
@@ -174,8 +181,8 @@ class DekkImporter_Product_Creator {
 
         $this->plugin->logger->log("Variation created (no studs): {$sku}-0 (ID: {$variation1_id})");
 
-        // Variation 2: With studs (add 3000-4000 ISK) - BUG FIX #6: Validate RimSize
-        $rim_size = isset($item['RimSize']) ? (int)$item['RimSize'] : 0;
+        // Variation 2: With studs (add 3000-4000 ISK) - null coalescing for RimSize
+        $rim_size = (int)($item['RimSize'] ?? 0);
         $stud_markup = $rim_size >= 18 ? 4000 : 3000;
         $studded_price = $base_price + $stud_markup;
 

@@ -10,11 +10,15 @@ if (!defined('ABSPATH')) {
 class DekkImporter_Product_Updater {
     /**
      * Plugin instance
+     *
+     * @var DekkImporter
      */
     private $plugin;
 
     /**
      * Constructor
+     *
+     * @param DekkImporter $plugin Plugin instance
      */
     public function __construct($plugin) {
         $this->plugin = $plugin;
@@ -38,7 +42,7 @@ class DekkImporter_Product_Updater {
      * @param array $item Product data from API (normalized format)
      * @return bool Success
      */
-    public function update_product($product_id, $item) {
+    public function update_product(int $product_id, array $item): bool {
         global $wpdb;
 
         $this->plugin->logger->log("Starting update for product ID: $product_id");
@@ -124,7 +128,7 @@ class DekkImporter_Product_Updater {
         $this->plugin->logger->log("Stock check for product ID $product_id: current=$current_stock, new=$new_stock, api_qty={$item['QTY']}");
 
         // Update stock using CRUD
-        if ($current_stock != $new_stock) {
+        if ($current_stock !== $new_stock) {
             $product->set_manage_stock(true);
             $product->set_stock_quantity($new_stock);
             $product->set_stock_status($new_stock > 0 ? 'instock' : 'outofstock');
@@ -140,7 +144,7 @@ class DekkImporter_Product_Updater {
         }
 
         // Update price using CRUD
-        if ($current_price != $target_price) {
+        if ($current_price !== $target_price) {
             $product->set_regular_price((string)$target_price);
             $product->set_price((string)$target_price);
             $needs_save = true;
@@ -244,7 +248,7 @@ class DekkImporter_Product_Updater {
             $this->plugin->logger->log("Saved all updates for product ID $product_id.");
 
             // WooCommerce action hooks - notify other plugins of changes
-            if ($current_stock != $new_stock) {
+            if ($current_stock !== $new_stock) {
                 do_action('woocommerce_product_set_stock', $product);
                 do_action('woocommerce_product_stock_status_changed', $product_id, $product->get_stock_status());
             }
@@ -263,7 +267,7 @@ class DekkImporter_Product_Updater {
      * @param string $filename The filename to sanitize
      * @return string The sanitized filename
      */
-    private function sanitize_filename($filename) {
+    private function sanitize_filename(string $filename): string {
         if (empty($filename)) {
             return '';
         }
@@ -280,8 +284,9 @@ class DekkImporter_Product_Updater {
      * WooCommerce Best Practice: Always clear caches after product updates
      *
      * @param int $product_id Product ID
+     * @return void
      */
-    private function clear_product_cache($product_id) {
+    private function clear_product_cache(int $product_id): void {
         // Clear WooCommerce transients
         wc_delete_product_transients($product_id);
 
