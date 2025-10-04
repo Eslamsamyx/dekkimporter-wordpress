@@ -106,9 +106,9 @@ class DekkImporter_Product_Updater {
             }
         }
 
-        // Generate expected description
-        $eu_label_url = isset($item['EuSheeturl']) ? $item['EuSheeturl'] : '';
-        $expected_description = DekkImporter_Product_Helpers::product_desc($tire_type, $eu_label_url);
+        // Generate expected description with EU label page URL (not image URL)
+        $eu_label_page_url = isset($item['EuSheetPageUrl']) ? $item['EuSheetPageUrl'] : '';
+        $expected_description = DekkImporter_Product_Helpers::product_desc($tire_type, $eu_label_page_url);
 
         // Sanitize for database security (allow safe HTML)
         $expected_description = wp_kses_post($expected_description);

@@ -117,9 +117,9 @@ class DekkImporter_Product_Creator {
             }
         }
 
-        // Set product description with EU label (null coalescing for consistency)
-        $eu_label_url = $item['EuSheeturl'] ?? '';
-        $description = DekkImporter_Product_Helpers::product_desc($tire_type, $eu_label_url);
+        // Set product description with EU label page URL (not image URL)
+        $eu_label_page_url = $item['EuSheetPageUrl'] ?? '';
+        $description = DekkImporter_Product_Helpers::product_desc($tire_type, $eu_label_page_url);
         $product->set_description($description);
 
         // Save product

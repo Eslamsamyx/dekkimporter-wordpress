@@ -357,10 +357,17 @@ class DekkImporter_Data_Source {
             $gallery_url = 'https:' . $product['extra_images'][$total_images - 1];
         }
 
-        // EU Label URL
-        $eu_label = '';
+        // EU Label URLs (based on dekkimporter-7.php lines 1562-1569)
+        // Direct image URL pattern: https://eprel.ec.europa.eu/labels/tyres/Label_{ID}.png
+        // Fallback to PDF if PNG doesn't exist (handled in upload function)
+        $eu_label_image = '';
+        $eu_label_page = '';
         if (isset($product['eprel']) && !empty($product['eprel'])) {
-            $eu_label = 'https://eprel.ec.europa.eu/screen/product/tyres/' . $product['eprel'];
+            $eprel_id = sanitize_text_field($product['eprel']);
+            // Direct image URL - try PNG first (upload function will fallback to PDF)
+            $eu_label_image = 'https://eprel.ec.europa.eu/labels/tyres/Label_' . $eprel_id . '.png';
+            // Page URL for product description
+            $eu_label_page = 'https://eprel.ec.europa.eu/screen/product/tyres/' . $eprel_id;
         }
 
         return [
@@ -381,8 +388,10 @@ class DekkImporter_Data_Source {
             'photourl' => $image_url,
             'galleryPhotourl' => $gallery_url,
 
-            // EU Label
-            'EuSheeturl' => $eu_label,
+            // EU Label (direct image URL for download)
+            'EuSheeturl' => $eu_label_image,
+            // EU Label page URL (for product description)
+            'EuSheetPageUrl' => $eu_label_page,
 
             // Type from group (null coalescing for consistency)
             'type' => $product['group']['title'] ?? '',

@@ -621,17 +621,6 @@ class DekkImporter_Product_Helpers {
             return false;
         }
 
-        // EU labels from eprel.ec.europa.eu are web pages, not direct image URLs
-        // For now, we'll store the URL as product meta but not try to download it
-        // TODO: Implement scraping of actual image from EU label page
-        if (strpos($eusheet_url, 'eprel.ec.europa.eu') !== false) {
-            // Store EU label URL as meta for future use
-            update_post_meta($product_id, '_eu_label_url', esc_url_raw($eusheet_url));
-            error_log("DekkImporter: Stored EU label URL for product {$product_id}: {$eusheet_url}");
-            return true;
-        }
-
-        // For direct image URLs (if any), proceed with download
         // Check if we already have this EU sheet cached
         $cached_eusheet_id = get_post_meta($product_id, '_euSheet_image_id', true);
 
@@ -650,8 +639,17 @@ class DekkImporter_Product_Helpers {
         $eusheet_id = self::get_attachment_id_by_filename($filename);
 
         if (!$eusheet_id) {
-            // Upload new image
+            // Upload new image - try PNG first (dekkimporter-7.php line 1562)
             $eusheet_id = self::upload_image($eusheet_url, $filename);
+
+            // If PNG fails and this is an EU label, try PDF fallback (dekkimporter-7.php line 1566)
+            if (!$eusheet_id && strpos($eusheet_url, 'eprel.ec.europa.eu') !== false && strpos($eusheet_url, '.png') !== false) {
+                $pdf_url = str_replace('.png', '.pdf', $eusheet_url);
+                $pdf_filename = str_replace('.png', '.pdf', $filename);
+                error_log("DekkImporter: PNG failed for product {$product_id}, trying PDF: {$pdf_url}");
+                $eusheet_id = self::upload_image($pdf_url, $pdf_filename);
+            }
+
             if (!$eusheet_id) {
                 error_log("DekkImporter: Failed to upload EU sheet for product {$product_id}: {$eusheet_url}");
                 return false;
