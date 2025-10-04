@@ -119,24 +119,6 @@ class DekkImporter_Admin {
         );
 
         add_settings_field(
-            'dekkimporter_bk_email',
-            'BK Supplier Email',
-            array($this, 'render_email_field'),
-            'dekkimporter',
-            'dekkimporter_section',
-            array('field' => 'dekkimporter_bk_email')
-        );
-
-        add_settings_field(
-            'dekkimporter_bm_email',
-            'BM Supplier Email',
-            array($this, 'render_email_field'),
-            'dekkimporter',
-            'dekkimporter_section',
-            array('field' => 'dekkimporter_bm_email')
-        );
-
-        add_settings_field(
             'dekkimporter_field_notification_email',
             'CC Notification Email',
             array($this, 'render_email_field'),
@@ -248,16 +230,12 @@ class DekkImporter_Admin {
 
         // Sanitize email fields (modern array syntax)
         $email_fields = [
-            'dekkimporter_bk_email',
-            'dekkimporter_bm_email',
             'dekkimporter_field_notification_email',
             'sync_notification_email',
         ];
 
         // Field name mapping for better error messages
         $field_labels = [
-            'dekkimporter_bk_email' => __('BK Supplier Email', 'dekkimporter'),
-            'dekkimporter_bm_email' => __('BM Supplier Email', 'dekkimporter'),
             'dekkimporter_field_notification_email' => __('CC Notification Email', 'dekkimporter'),
             'sync_notification_email' => __('Sync Notification Email', 'dekkimporter'),
         ];
