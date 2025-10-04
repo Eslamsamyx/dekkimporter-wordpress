@@ -111,10 +111,10 @@ class DekkImporter_Data_Source {
             return;
         }
 
-        // Create lookup by ItemId
+        // Create lookup by ItemId - store entire record for EU label data
         foreach ($data['myndir'] as $item) {
-            if (isset($item['id']) && isset($item['photourl'])) {
-                $this->bk_image_db[$item['id']] = $item['photourl'];
+            if (isset($item['id'])) {
+                $this->bk_image_db[$item['id']] = $item;  // Store entire record, not just photourl
             }
         }
         $this->plugin->logger->log("Loaded " . count($this->bk_image_db) . " BK product images");
@@ -177,9 +177,24 @@ class DekkImporter_Data_Source {
             $item_id = $product['ItemId'];
             if (!isset($aggregated[$item_id])) {
                 $aggregated[$item_id] = $product;
-                // Map image from database
+                // Map image and EU label data from database
                 if (isset($this->bk_image_db[$item_id])) {
-                    $aggregated[$item_id]['photourl'] = $this->bk_image_db[$item_id];
+                    $image_data = $this->bk_image_db[$item_id];
+                    // Set photourl
+                    if (isset($image_data['photourl'])) {
+                        $aggregated[$item_id]['photourl'] = $image_data['photourl'];
+                    }
+                    // Extract eprel ID from external_url for EU label
+                    if (isset($image_data['external_url']) && !empty($image_data['external_url'])) {
+                        // external_url format: https://eprel.ec.europa.eu/qr/529803
+                        $url_parts = parse_url($image_data['external_url']);
+                        if (isset($url_parts['path'])) {
+                            $eprel_id = basename($url_parts['path']);
+                            if (!empty($eprel_id) && is_numeric($eprel_id)) {
+                                $aggregated[$item_id]['eprel'] = $eprel_id;
+                            }
+                        }
+                    }
                 }
                 // Apply 24% VAT to price if it exists
                 if (isset($aggregated[$item_id]['Price'])) {
@@ -289,6 +304,19 @@ class DekkImporter_Data_Source {
         $sku = $product['ItemId'] . '-BK';
         $price = isset($product['Price']) ? floatval($product['Price']) : 0;
 
+        // EU Label URLs (based on dekkimporter-7.php lines 1562-1569)
+        // Direct image URL pattern: https://eprel.ec.europa.eu/labels/tyres/Label_{ID}.png
+        // Fallback to PDF if PNG doesn't exist (handled in upload function)
+        $eu_label_image = '';
+        $eu_label_page = '';
+        if (isset($product['eprel']) && !empty($product['eprel'])) {
+            $eprel_id = sanitize_text_field($product['eprel']);
+            // Direct image URL - try PNG first (upload function will fallback to PDF)
+            $eu_label_image = 'https://eprel.ec.europa.eu/labels/tyres/Label_' . $eprel_id . '.png';
+            // Page URL for product description
+            $eu_label_page = 'https://eprel.ec.europa.eu/screen/product/tyres/' . $eprel_id;
+        }
+
         return [
             // Core fields
             'sku' => sanitize_text_field($sku),
@@ -307,8 +335,10 @@ class DekkImporter_Data_Source {
             'photourl' => isset($product['photourl']) ? esc_url_raw($product['photourl']) : '',
             'galleryPhotourl' => isset($product['galleryPhotourl']) ? esc_url_raw($product['galleryPhotourl']) : '',
 
-            // EU Label
-            'EuSheeturl' => isset($product['EuSheeturl']) ? esc_url_raw($product['EuSheeturl']) : '',
+            // EU Label (direct image URL for download)
+            'EuSheeturl' => $eu_label_image,
+            // EU Label page URL (for product description)
+            'EuSheetPageUrl' => $eu_label_page,
 
             // Tracking fields (required by sync manager)
             'api_id' => sanitize_text_field($product['ItemId']),
